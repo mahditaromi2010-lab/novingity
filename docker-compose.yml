@@ -42,6 +42,14 @@ services:
       # Map.ir base-map tiles are used while MAPIR_API_KEY holds an unexpired key, otherwise OSM/CARTO.
       FEATURE_COVERAGE_MAP: ${FEATURE_COVERAGE_MAP:-false}
       MAPIR_API_KEY: ${MAPIR_API_KEY:-}
+      # «دستیار مبحث ۱۷»: page shown when FEATURE_AI_ASSISTANT=true; AI answers need AI_API_KEY (GapGPT).
+      FEATURE_AI_ASSISTANT: ${FEATURE_AI_ASSISTANT:-false}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.gapapi.com/v1}
+      AI_MODEL_ANSWER: ${AI_MODEL_ANSWER:-}
+      AI_MODEL_EMBED: ${AI_MODEL_EMBED:-}
+      AI_DAILY_REQUEST_LIMIT: ${AI_DAILY_REQUEST_LIMIT:-300}
+      AI_DAILY_TOKEN_LIMIT: ${AI_DAILY_TOKEN_LIMIT:-3000000}
     volumes:
       - nugas_uploads:/app/uploads
 volumes:

@@ -24,6 +24,8 @@ const { listMigrations } = require('./lib/migrations');
 const { i18nMiddleware, resolveLocale, DEFAULT_LOCALE, LOCALE_COOKIE } = require('./lib/i18n');
 const { filterCoverageAreas, summarizeCoverageAreas, statusColor: coverageTone } = require('./lib/coverage-filter');
 const { mapTileConfig, mapirKeyStatus } = require('./lib/map-tiles');
+const { createGateway } = require('./lib/ai/gateway');
+const { createMabhas17Assistant } = require('./lib/ai/mabhas17-assistant');
 
 // Versions shipped with this build; read once at start-up.
 const EXPECTED_MIGRATIONS = listMigrations().map(m => m.version);
@@ -50,12 +52,17 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   // developed further. Off unless FEATURE_COVERAGE_MAP=true; turning it back on needs only that env var.
   // Admin CRUD for the map data stays available either way.
   const COVERAGE_MAP_ENABLED = process.env.FEATURE_COVERAGE_MAP === 'true';
+  // «دستیار مبحث ۱۷» (AI Q&A over the gas code). The page is public only when FEATURE_AI_ASSISTANT=true; the
+  // model is used only when AI_API_KEY is set too, otherwise the page answers with the matching clauses only.
+  const AI_ASSISTANT_PAGE = process.env.FEATURE_AI_ASSISTANT === 'true';
+  const aiGateway = createGateway({ pool, logger });
+  const mabhas17 = createMabhas17Assistant({ gateway: aiGateway });
   // Cache-busting for CSS/JS: a short hash of their contents, appended as ?v= in the views. Static files
   // are cached by browsers for 7 days (and by the service worker), so without this a deploy could keep
   // showing old styles/scripts to returning visitors.
   const ASSET_VERSION = (() => {
     const h = crypto.createHash('sha1');
-    for (const f of ['css/styles.css', 'css/elevate.css', 'js/main.js', 'js/motion.js', 'js/tools.js', 'js/map.js', 'css/coverage-map.css']) {
+    for (const f of ['css/styles.css', 'css/elevate.css', 'js/main.js', 'js/motion.js', 'js/tools.js', 'js/map.js', 'css/coverage-map.css', 'js/assistant.js', 'css/assistant.css']) {
       try { h.update(fs.readFileSync(path.join(ROOT, 'public', f))); } catch { /* optional file */ }
     }
     return h.digest('hex').slice(0, 10);
@@ -222,6 +229,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
       : (settingsCache.site_tagline || 'مهندسی با اطمینان');
     res.locals.siteEmail = settingsCache.contact_email || '';
     res.locals.coverageMapEnabled = COVERAGE_MAP_ENABLED;
+    res.locals.aiAssistantEnabled = AI_ASSISTANT_PAGE;
     res.locals.assetVersion = ASSET_VERSION;
     res.locals.currentUser = null;
     res.locals.currentAdmin = null;
@@ -527,6 +535,36 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     res.render('about', { title: res.locals.t('page.about'), settings, teamMembers: team.rows });
   }));
   app.get('/tools', (_req, res) => res.render('tools', { title: res.locals.t('page.tools') }));
+
+  // ---------- «دستیار مبحث ۱۷» ----------
+  const aiAskLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, standardHeaders: 'draft-7', legacyHeaders: false,
+    limit: req => (req.user ? 30 : 8),
+    keyGenerator: (req, res) => (req.user ? `u:${req.user.id}` : `ip:${req.ip}`),
+    handler: (req, res) => res.status(429).json({ error: res.locals.t('assistant.error.rate') })
+  });
+  app.get('/assistant', (req, res) => {
+    if (!AI_ASSISTANT_PAGE) return renderError(res, 404, res.locals.t('errorPage.notFoundTitle'), res.locals.t('errorPage.notFoundMessage'));
+    res.render('assistant', { title: res.locals.t('assistant.pageTitle'), metaDescription: res.locals.t('assistant.metaDescription'), aiLive: aiGateway.enabled(), kbReady: mabhas17.ready() });
+  });
+  app.post('/api/assistant/ask', aiAskLimiter, asyncRoute(async (req, res) => {
+    if (!AI_ASSISTANT_PAGE) return res.status(404).json({ error: 'not found' });
+    const question = normalizeText(req.body.question, 600);
+    if (!question || question.length < 3) return res.status(422).json({ error: res.locals.t('assistant.error.empty') });
+    const history = Array.isArray(req.body.history) ? req.body.history.slice(-4).map(h => ({ role: h && h.role === 'assistant' ? 'assistant' : 'user', content: normalizeText(h && h.content, 1500) })) : [];
+    const r = await mabhas17.ask(question, { history });
+    res.set('Cache-Control', 'no-store');
+    res.json(r);
+  }));
+  app.post('/api/assistant/feedback', aiAskLimiter, asyncRoute(async (req, res) => {
+    if (!AI_ASSISTANT_PAGE) return res.status(404).json({ error: 'not found' });
+    const rating = Number(req.body.rating);
+    const question = normalizeText(req.body.question, 600);
+    if (![1, -1].includes(rating) || !question) return res.status(422).json({ error: 'invalid' });
+    await pool.query('INSERT INTO ai_feedback (feature, rating, question, answer, model, user_id) VALUES ($1,$2,$3,$4,$5,$6)',
+      ['mabhas17', rating, require('./lib/ai/mabhas17-assistant').redactText(question), normalizeText(req.body.answer, 4000) || null, normalizeText(req.body.model, 80) || null, req.user ? req.user.id : null]);
+    res.json({ ok: true });
+  }));
 
   // ───────────── Hormozgan coverage map (demo data; item 7) ─────────────
   // One clean read function so a future real data source (admin CRUD, an external system) can replace the

@@ -1,0 +1,37 @@
+<%- include('partials/header', {title, metaDescription}) %>
+<link rel="stylesheet" href="/public/css/assistant.css?v=<%= locals.assetVersion || '0' %>">
+<section class="page-hero as-hero"><div class="container as-hero-inner">
+  <div class="breadcrumb"><a href="/"><%= t('tools.breadcrumbHome') %></a><span>/</span><a href="/tools"><%= t('nav.tools') %></a><span>/</span><span><%= t('nav.assistant') %></span></div>
+  <span class="section-kicker"><%= t('assistant.kicker') %></span>
+  <h1><%= t('assistant.titlePre') %><br><em><%= t('assistant.titleEm') %></em></h1>
+  <p><%= t('assistant.lead') %></p>
+  <p class="as-status <%= aiLive ? 'is-live' : 'is-search' %>"><i aria-hidden="true"></i><%= aiLive ? t('assistant.statusLive') : t('assistant.statusSearch') %></p>
+</div></section>
+
+<section class="section as-section"><div class="container as-shell">
+  <div class="as-thread" id="asThread" aria-live="polite" aria-busy="false"></div>
+
+  <div class="as-examples" id="asExamples">
+    <h2><%= t('assistant.examplesTitle') %></h2>
+    <div class="as-example-list">
+      <% [1,2,3,4].forEach(i => { %><button type="button" class="as-example" data-example><%= t('assistant.example' + i) %></button><% }) %>
+    </div>
+  </div>
+
+  <form class="as-composer" id="asForm" autocomplete="off">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <label class="sr-only" for="asQuestion"><%= t('assistant.inputLabel') %></label>
+    <textarea id="asQuestion" name="question" rows="2" maxlength="600" required placeholder="<%= t('assistant.placeholder') %>"></textarea>
+    <button class="button button-primary" type="submit" id="asSend"><%= t('assistant.send') %></button>
+  </form>
+  <p class="as-fineprint"><%= t('assistant.privacy') %></p>
+  <p class="as-fineprint"><%= t('assistant.disclaimer') %></p>
+  <p class="as-fineprint"><a href="/tools#pipe"><%= t('assistant.calcHint') %></a> · <a href="/account/tickets"><%= t('assistant.humanHelp') %></a></p>
+</div></section>
+<%
+  const ui = ['aiLabel','sending','sourcesTitle','expertTitle','fallbackNote','noSources','helpful','notHelpful','thanks','copy','copied','page','clause','error.empty','error.rate','error.generic'].reduce((m, k) => { m[k] = t('assistant.' + k); return m; }, {});
+  ui.locale = locale;
+%>
+<script type="application/json" id="assistant-ui"><%- JSON.stringify(ui).replace(/</g, '\\u003c') %></script>
+<script defer src="/public/js/assistant.js?v=<%= locals.assetVersion || '0' %>"></script>
+<%- include('partials/footer') %>

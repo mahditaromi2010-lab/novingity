@@ -12,7 +12,7 @@ test('migrations on PostgreSQL', { skip: skipReason, concurrency: false }, async
   t.after(() => pool.end());
 
   const ALL_MIGRATIONS = ['0001_baseline', '0002_hardening', '0003_team_members', '0004_bilingual_content', '0005_support_tickets',
-    '0006_brand_rename', '0007_plugin_content', '0008_coverage_map', '0009_consultation_requests', '0010_about_text_brand', '0011_demo_step_images'];
+    '0006_brand_rename', '0007_plugin_content', '0008_coverage_map', '0009_consultation_requests', '0010_about_text_brand', '0011_demo_step_images', '0012_ai_assistant'];
 
   await t.test('fresh database: all migrations apply, re-run is a no-op', async () => {
     await resetDatabase(pool);
@@ -53,6 +53,8 @@ test('migrations on PostgreSQL', { skip: skipReason, concurrency: false }, async
     // Only the most recently applied migration can be rolled back; roll them off in reverse order.
     const about = async () => (await pool.query("SELECT setting_value v FROM site_settings WHERE setting_key='about_text'")).rows[0]?.v;
     const aboutAfter = await about();
+    assert.equal(await migrateDown(pool, '0012'), '0012_ai_assistant');
+    assert.equal((await pool.query("SELECT to_regclass('public.ai_usage') AS t")).rows[0].t, null);
     assert.equal(await migrateDown(pool, '0011'), '0011_demo_step_images');
     assert.equal((await pool.query("SELECT to_regclass('public.product_demo_step_images') AS t")).rows[0].t, null);
     assert.equal(await migrateDown(pool, '0010'), '0010_about_text_brand');
@@ -76,10 +78,11 @@ test('migrations on PostgreSQL', { skip: skipReason, concurrency: false }, async
     assert.equal(Number((await pool.query('SELECT COUNT(*) n FROM users')).rows[0].n), 2);
     await assert.rejects(migrateDown(pool, '0001'), /no reviewed \.down\.sql|Only the most recently applied/);
     assert.deepEqual(await migrateUp(pool), ['0002_hardening', '0003_team_members', '0004_bilingual_content', '0005_support_tickets',
-      '0006_brand_rename', '0007_plugin_content', '0008_coverage_map', '0009_consultation_requests', '0010_about_text_brand', '0011_demo_step_images']);
+      '0006_brand_rename', '0007_plugin_content', '0008_coverage_map', '0009_consultation_requests', '0010_about_text_brand', '0011_demo_step_images', '0012_ai_assistant']);
   });
 
   await t.test('0010 renames the brand only in the untouched default About text', async () => {
+    assert.equal(await migrateDown(pool, '0012'), '0012_ai_assistant');
     assert.equal(await migrateDown(pool, '0011'), '0011_demo_step_images');
     assert.equal(await migrateDown(pool, '0010'), '0010_about_text_brand');
     await pool.query("UPDATE site_settings SET setting_value='Nogiti — متن نوشته‌شده توسط مدیر' WHERE setting_key='about_text'");

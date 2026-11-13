@@ -28,7 +28,8 @@
     <button class="mobile-toggle" type="button" aria-label="<%= t('a11y.openMenu') %>" aria-controls="main-nav" aria-expanded="false" data-menu-toggle><span></span><span></span><span></span></button>
     <nav class="main-nav" id="main-nav" aria-label="<%= t('a11y.mainMenu') %>" data-nav>
       <a href="/tools"><%= t('nav.tools') %></a>
-      <a href="/shop"><%= t('nav.shop') %></a>
+<% if (locals.aiAssistantEnabled) { %>      <a href="/assistant"><%= t('nav.assistant') %></a>
+<% } %>      <a href="/shop"><%= t('nav.shop') %></a>
       <a href="/articles"><%= t('nav.articles') %></a>
 <% if (coverageMapEnabled) { %>      <a href="/coverage-map"><%= t('nav.coverageMap') %></a>
 <% } %>      <a href="/about"><%= t('nav.about') %></a>
