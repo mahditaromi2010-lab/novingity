@@ -543,3 +543,41 @@ label { color: var(--ink); font-size: 14.5px; font-weight: 700; }
   .footer-bottom { font-size: 13px; }
   .brand small { font-size: 11.5px; }
 }
+
+/* Touch targets on phones (ui-gate P2): menu button, language switch and footer links reach 44px. */
+@media (max-width: 800px) {
+  .mobile-toggle { min-width: 44px; min-height: 44px; display: grid; place-content: center; }
+  .lang-switch a { min-height: 44px; min-width: 44px; display: inline-grid; place-items: center; }
+  .nav-actions .button { min-height: 44px; }
+  .site-footer a { display: inline-flex; align-items: center; min-height: 44px; }
+  .breadcrumb a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+/* Header links never break onto two lines (the admin "مدیریت" link made the bar wrap at ~1366px). */
+.main-nav a { white-space: nowrap; }
+@media (min-width: 801px) and (max-width: 1400px) { .main-nav { gap: 18px; } }
+/* Narrow desktops: signed-in admins/users have 2–3 extra header items — keep the header on one line. */
+@media (min-width: 801px) and (max-width: 1240px) {
+  .nav-shell { gap: 16px; }
+  .main-nav { gap: 14px; }
+  .main-nav a { font-size: 12.5px; }
+  .brand small { display: none; }
+  .user-chip-name { display: none; }
+}
+@media (min-width: 1241px) and (max-width: 1540px) {
+  .nav-shell:has(.user-chip) { gap: 16px; }
+  .nav-shell:has(.user-chip) .main-nav { gap: 14px; }
+  .nav-shell:has(.user-chip) .brand small, .nav-shell:has(.user-chip) .user-chip-name { display: none; }
+}
+/* Admin sidebar: the active item and the brand were dark text on the dark sidebar. */
+.admin-sidebar .admin-link.is-active { color: #fff; }
+.admin-sidebar .brand strong { color: #fff; }
+.admin-sidebar .brand small { color: rgb(233 246 239 / .7); }
+.topbar-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+@media (min-width: 801px) and (max-width: 980px) {
+  .main-nav { gap: 10px; }
+  .main-nav a { font-size: 12px; }
+  .brand > span:last-child { display: none; }
+  .nav-actions .button-small { padding-inline: 10px; }
+}
+.nav-actions .button, .nav-actions .user-chip, .lang-switch { white-space: nowrap; flex-shrink: 0; }

@@ -21,7 +21,7 @@ test('content management and upload validation', { skip: skipReason, concurrency
   t.after(async () => { await srv.stop(); await pool.end(); });
   const c = new Client(srv.base);
   await c.adminLogin('content_mgr', PW);
-  const files = sub => fs.readdirSync(path.join(srv.uploadDir, sub));
+  const files = sub => fs.readdirSync(path.join(srv.uploadDir, sub), { withFileTypes: true }).filter(e => e.isFile()).map(e => e.name);
   const multipart = async (url, fields, fileField, buffer, name, type, from) => {
     const fd = new FormData();
     fd.set('_csrf', await c.csrf(from || url));

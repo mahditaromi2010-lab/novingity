@@ -11,6 +11,7 @@
     <% if (can('content')) { %>
       <%- navItem('/admin/products', '▤', t('adminNav.products'), at('/admin/products')) %>
       <%- navItem('/admin/articles', '▧', t('adminNav.articles'), at('/admin/articles') || at('/admin/article-images')) %>
+      <%- navItem('/admin/library', '▥', t('adminNav.library'), at('/admin/library')) %>
       <%- navItem('/admin/team', '☺', t('admin.team.title'), at('/admin/team')) %>
       <% if (coverageMapEnabled) { %><%- navItem('/admin/coverage-areas', '◫', t('adminCoverage.title'), at('/admin/coverage-areas')) %><% } %>
     <% } %>

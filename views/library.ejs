@@ -1,0 +1,91 @@
+<%- include('partials/header', {title, metaDescription}) %>
+<link rel="stylesheet" href="/public/css/library.css?v=<%= locals.assetVersion || '0' %>">
+<%
+  const nf = n => Number(n || 0).toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR');
+  const size = b => { if (!b) return ''; const mb = b / 1048576; return mb >= 1 ? `${nf(Math.round(mb * 10) / 10)} MB` : `${nf(Math.max(1, Math.round(b / 1024)))} KB`; };
+  const tr = (key, n) => t(key).replace('{n}', nf(n));
+  const titleOf = d => localizedField(d, 'title', 'title_en');
+  const descOf = d => localizedField(d, 'description', 'description_en');
+  const mabhasGroups = [];
+  docs.filter(d => d.category === 'mabhas').forEach(d => {
+    let g = mabhasGroups.find(x => x.n === d.mabhas_number);
+    if (!g) { g = { n: d.mabhas_number, docs: [] }; mabhasGroups.push(g); }
+    g.docs.push(d);
+  });
+  const others = categories.filter(c => c !== 'mabhas').map(c => ({ c, docs: docs.filter(d => d.category === c) })).filter(g => g.docs.length);
+  const qs = c => { const p = new URLSearchParams(); if (c) p.set('category', c); if (q) p.set('q', q); const s = p.toString(); return '/library' + (s ? '?' + s : ''); };
+  const total = Object.values(counts).reduce((s, n) => s + n, 0);
+%>
+<section class="page-hero lib-hero"><div class="container">
+  <div class="breadcrumb"><a href="/"><%= t('tools.breadcrumbHome') %></a><span>/</span><span><%= t('nav.library') %></span></div>
+  <span class="section-kicker"><%= t('library.kicker') %></span>
+  <h1><%= t('library.titlePre') %> <em><%= t('library.titleEm') %></em></h1>
+  <p><%= t('library.lead') %></p>
+  <form class="lib-search" action="/library" method="get" role="search">
+    <% if (category) { %><input type="hidden" name="category" value="<%= category %>"><% } %>
+    <label class="sr-only" for="libQ"><%= t('library.searchLabel') %></label>
+    <input class="form-control" id="libQ" name="q" type="search" value="<%= q %>" placeholder="<%= t('library.searchPlaceholder') %>" autocomplete="off">
+    <button class="button button-primary" type="submit"><%= t('library.searchButton') %></button>
+  </form>
+  <nav class="lib-chips" aria-label="<%= t('adminLibrary.colCategory') %>">
+    <a class="lib-chip" href="<%= qs('') %>"<%- !category ? ' aria-current="page"' : '' %>><%= t('library.all') %> <b><%= nf(total) %></b></a>
+    <% categories.filter(c => counts[c]).forEach(c => { %><a class="lib-chip" href="<%= qs(c) %>"<%- category === c ? ' aria-current="page"' : '' %>><%= t('library.cat.' + c) %> <b><%= nf(counts[c]) %></b></a><% }) %>
+  </nav>
+</div></section>
+
+<section class="section lib-section"><div class="container">
+  <p class="lib-count" aria-live="polite"><%= tr('library.resultCount', docs.length) %></p>
+  <% if (!docs.length) { %>
+    <div class="lib-empty"><p><%= t('library.empty') %></p><a class="button button-outline button-small" href="/library"><%= t('library.emptyAction') %></a></div>
+  <% } %>
+
+  <% if (mabhasGroups.length) { %>
+  <div class="lib-shelf">
+    <% mabhasGroups.forEach(g => { %>
+    <article class="lib-part" id="mabhas-<%= g.n %>">
+      <div class="lib-spine" aria-hidden="true"><small><%= locale === 'en' ? 'Part' : 'مبحث' %></small><b><%= nf(g.n) %></b></div>
+      <div class="lib-part-body">
+        <h2><%= titleOf(g.docs[0]) %></h2>
+        <ul class="lib-editions">
+          <% g.docs.forEach(d => { %>
+          <li class="lib-edition<%= d.is_current ? ' is-current' : '' %>">
+            <div class="lib-edition-info">
+              <span class="lib-badge<%= d.is_current ? ' is-current' : '' %>"><%= d.is_current ? t('library.current') : t('library.previous') %></span>
+              <b><%= d.edition || (d.edition_year ? nf(d.edition_year) : '') %></b>
+              <% if (descOf(d)) { %><p><%= descOf(d) %></p><% } %>
+              <small class="lib-meta"><span class="lib-type"><%= String(d.file_type || 'pdf').toUpperCase() %></span><% if (d.file_size) { %> · <%= size(d.file_size) %><% } %><% if (!d.file_key) { %> · <%= t('library.officialLink') %><% } %></small>
+            </div>
+            <div class="lib-actions">
+              <% if (d.file_key && d.file_type === 'pdf') { %><a class="button button-outline button-small" href="/library/<%= d.id %>/file" target="_blank" rel="noopener"><%= t('library.open') %></a><% } %>
+              <% if (d.file_key) { %><a class="button button-primary button-small" href="/library/<%= d.id %>/file?download=1"><%= t('library.download') %></a><% } else { %><a class="button button-primary button-small" href="/library/<%= d.id %>/file" target="_blank" rel="noopener noreferrer"><%= t('library.open') %> <span aria-hidden="true">↗</span></a><% } %>
+            </div>
+          </li>
+          <% }) %>
+        </ul>
+      </div>
+    </article>
+    <% }) %>
+  </div>
+  <% } %>
+
+  <% others.forEach(g => { %>
+  <h2 class="lib-group-title"><%= t('library.cat.' + g.c) %></h2>
+  <div class="lib-grid">
+    <% g.docs.forEach(d => { %>
+    <article class="lib-card">
+      <span class="lib-type lib-type-lg" aria-hidden="true"><%= String(d.file_type || 'pdf').toUpperCase() %></span>
+      <h3><%= titleOf(d) %></h3>
+      <% if (d.edition) { %><small class="lib-meta"><%= d.edition %></small><% } %>
+      <% if (descOf(d)) { %><p><%= descOf(d) %></p><% } %>
+      <div class="lib-actions">
+        <% if (d.file_key && d.file_type === 'pdf') { %><a class="button button-outline button-small" href="/library/<%= d.id %>/file" target="_blank" rel="noopener"><%= t('library.open') %></a><% } %>
+        <% if (d.file_key) { %><a class="button button-primary button-small" href="/library/<%= d.id %>/file?download=1"><%= t('library.download') %><% if (d.file_size) { %> · <%= size(d.file_size) %><% } %></a><% } else { %><a class="button button-primary button-small" href="/library/<%= d.id %>/file" target="_blank" rel="noopener noreferrer"><%= t('library.open') %> <span aria-hidden="true">↗</span></a><% } %>
+      </div>
+    </article>
+    <% }) %>
+  </div>
+  <% }) %>
+
+  <p class="lib-note"><%= t('library.note') %></p>
+</div></section>
+<%- include('partials/footer') %>

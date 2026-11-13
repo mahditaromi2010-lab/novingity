@@ -1,0 +1,25 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<div class="admin-topbar"><div><span class="section-kicker">LIBRARY</span><h1><%= doc ? t('adminLibrary.edit') : t('adminLibrary.new') %></h1></div><a href="/admin/library" class="button button-outline button-small"><%= t('common.back') %></a></div>
+<form class="admin-panel admin-form" action="<%= doc ? `/admin/library/${doc.id}/edit` : '/admin/library' %>" method="post" enctype="multipart/form-data" data-unsaved-guard>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="form-grid">
+    <div class="form-field form-span-2"><label for="title"><%= t('adminLibrary.fTitle') %> *</label><input class="form-control" id="title" name="title" maxlength="200" value="<%= doc?.title || '' %>" required placeholder="مبحث سیزدهم مقررات ملی ساختمان — طرح و اجرای تأسیسات برقی ساختمان‌ها"></div>
+    <div class="form-field form-span-2"><label for="title_en"><%= t('adminLibrary.fTitleEn') %></label><input class="form-control" id="title_en" name="title_en" dir="ltr" maxlength="200" value="<%= doc?.title_en || '' %>"></div>
+    <div class="form-field"><label for="category"><%= t('adminLibrary.fCategory') %></label><select class="form-control" id="category" name="category"><% categories.forEach(c => { %><option value="<%= c %>" <%= (doc?.category || 'mabhas') === c ? 'selected' : '' %>><%= t('library.cat.' + c) %></option><% }) %></select></div>
+    <div class="form-field"><label for="mabhas_number"><%= t('adminLibrary.fMabhas') %></label><input class="form-control" id="mabhas_number" name="mabhas_number" inputmode="numeric" maxlength="2" value="<%= doc?.mabhas_number ?? '' %>" aria-describedby="hint_mabhas"><small id="hint_mabhas"><%= t('adminLibrary.fMabhasHint') %></small></div>
+    <div class="form-field"><label for="edition"><%= t('adminLibrary.fEdition') %></label><input class="form-control" id="edition" name="edition" maxlength="80" value="<%= doc?.edition || '' %>" placeholder="<%= t('adminLibrary.fEditionPlaceholder') %>"></div>
+    <div class="form-field"><label for="edition_year"><%= t('adminLibrary.fYear') %></label><input class="form-control" id="edition_year" name="edition_year" inputmode="numeric" maxlength="4" value="<%= doc?.edition_year ?? '' %>" placeholder="1403"></div>
+    <div class="form-field form-span-2"><label for="description"><%= t('adminLibrary.fDescription') %></label><textarea class="form-control" id="description" name="description" rows="2" maxlength="1500"><%= doc?.description || '' %></textarea></div>
+    <div class="form-field form-span-2"><label for="description_en"><%= t('adminLibrary.fDescriptionEn') %></label><textarea class="form-control" id="description_en" name="description_en" dir="ltr" rows="2" maxlength="1500"><%= doc?.description_en || '' %></textarea></div>
+    <div class="form-field form-span-2"><label for="file"><%= t('adminLibrary.fFile') %></label>
+      <% if (doc?.file_key) { %><p class="form-current-file"><%= t('adminLibrary.fCurrentFile') %> <a href="/library/<%= doc.id %>/file" target="_blank" rel="noopener" dir="ltr"><%= doc.file_name %></a></p><% } %>
+      <input class="form-control file-control" id="file" type="file" name="file" accept=".pdf,.docx,.xlsx,.pptx,.zip,application/pdf" aria-describedby="hint_file"><small id="hint_file"><%= t('adminLibrary.fFileHint').replace('{mb}', maxUploadMb) %></small>
+      <% if (doc?.file_key) { %><label class="check-line"><input type="checkbox" name="remove_file"> <%= t('adminLibrary.fRemoveFile') %></label><% } %>
+    </div>
+    <div class="form-field form-span-2"><label for="external_url"><%= t('adminLibrary.fExternal') %></label><input class="form-control" id="external_url" name="external_url" dir="ltr" maxlength="1000" value="<%= doc?.external_url || '' %>" placeholder="https://..." aria-describedby="hint_ext"><small id="hint_ext"><%= t('adminLibrary.fExternalHint') %></small></div>
+    <div class="form-field"><label for="sort_order"><%= t('adminLibrary.fOrder') %></label><input class="form-control" id="sort_order" name="sort_order" type="number" value="<%= doc?.sort_order ?? 0 %>"></div>
+    <div class="form-field"><label class="check-line"><input type="checkbox" name="is_published" <%= !doc || doc.is_published ? 'checked' : '' %>> <%= t('adminLibrary.fPublished') %></label><label class="check-line"><input type="checkbox" name="is_current" <%= !doc || doc.is_current ? 'checked' : '' %>> <%= t('adminLibrary.fCurrent') %></label></div>
+  </div>
+  <div class="form-actions"><button class="button button-primary" type="submit" data-busy-label="در حال ذخیره…"><%= t('common.save') %></button><a href="/admin/library" class="button button-outline"><%= t('common.cancel') %></a></div>
+</form>
+</div></div><%- include('../partials/footer') %>

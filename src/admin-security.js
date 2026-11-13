@@ -25,7 +25,7 @@ function permissionForPath(pathname) {
   const section = path[0] || 'overview';
   if (section === 'admins') return 'admins';
   if (section === 'account' || section === 'logout') return 'self';
-  if (section === 'products' || section === 'articles' || section === 'article-images' || section === 'assets' || section === 'team' || section === 'gallery' || section === 'demo-steps') return 'content';
+  if (section === 'products' || section === 'articles' || section === 'article-images' || section === 'assets' || section === 'team' || section === 'gallery' || section === 'demo-steps' || section === 'library') return 'content';
   if (section === 'orders') return 'orders';
   if (section === 'users') return 'users';
   if (section === 'settings') return 'settings';

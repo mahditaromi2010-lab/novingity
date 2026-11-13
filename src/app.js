@@ -62,7 +62,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   // showing old styles/scripts to returning visitors.
   const ASSET_VERSION = (() => {
     const h = crypto.createHash('sha1');
-    for (const f of ['css/styles.css', 'css/elevate.css', 'js/main.js', 'js/motion.js', 'js/tools.js', 'js/map.js', 'css/coverage-map.css', 'js/assistant.js', 'css/assistant.css']) {
+    for (const f of ['css/styles.css', 'css/elevate.css', 'js/main.js', 'js/motion.js', 'js/tools.js', 'js/map.js', 'css/coverage-map.css', 'js/assistant.js', 'css/assistant.css', 'css/library.css']) {
       try { h.update(fs.readFileSync(path.join(ROOT, 'public', f))); } catch { /* optional file */ }
     }
     return h.digest('hex').slice(0, 10);
@@ -79,7 +79,8 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   const throttle = new PgThrottle(pool, SECRET);
   const dummyAdminHashPromise = bcrypt.hash('invalid-login-dummy-password', 12);
 
-  for (const dir of [UPLOAD_DIR, COVERS_DIR, PRIVATE_DIR]) fs.mkdirSync(dir, { recursive: true });
+  const LIBRARY_DIR = path.join(PRIVATE_DIR, 'library');
+  for (const dir of [UPLOAD_DIR, COVERS_DIR, PRIVATE_DIR, LIBRARY_DIR]) fs.mkdirSync(dir, { recursive: true });
   if (IS_PROD && (!process.env.APP_SECRET || process.env.APP_SECRET.length < 32 || /^(replace|change|your)[-_]/i.test(process.env.APP_SECRET))) {
     throw new Error('در محیط production باید APP_SECRET تصادفی و حداقل ۳۲ نویسه باشد.');
   }
@@ -1614,6 +1615,126 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     if (r.rowCount && r.rows[0].photo_path) await removeCoverIfUnused(r.rows[0].photo_path, '');
     setFlash(req, r.rowCount ? 'success' : 'error', r.rowCount ? 'عضو تیم حذف شد.' : 'این عضو تیم پیدا نشد.');
     res.redirect('/admin/team');
+  }));
+
+  // ───────────── Regulations library (مقررات و منابع) ─────────────
+  // Admins with the 'content' permission upload files (PDF, or Office/ZIP archives) or link to an official copy;
+  // visitors browse and download. Files are content-sniffed, stored under a random name outside express.static,
+  // and served by /library/:id/file with the original file name.
+  const LIBRARY_CATEGORIES = ['mabhas', 'standard', 'guide', 'form', 'other'];
+  const libraryMimesByExt = {
+    '.pdf': ['application/pdf', 'application/octet-stream'],
+    '.zip': ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+    '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/octet-stream'],
+    '.xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'],
+    '.pptx': ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/octet-stream']
+  };
+  const libraryUpload = multer({
+    storage: multer.diskStorage({ destination: (_req, _file, cb) => cb(null, LIBRARY_DIR), filename: (_req, file, cb) => cb(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`) }),
+    limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024, files: 1, fields: 30 },
+    fileFilter: (_req, file, cb) => { const ok = !!libraryMimesByExt[path.extname(file.originalname).toLowerCase()]?.includes(file.mimetype); cb(ok ? null : new Error('File type rejected'), ok); }
+  }).single('file');
+  const libraryPolicy = file => ({ allowedKinds: path.extname(file.originalname).toLowerCase() === '.pdf' ? ['pdf'] : ['zip'], expectedExt: path.extname(file.originalname).toLowerCase() === '.pdf' ? '.pdf' : '.zip' });
+  const libraryFileType = name => (path.extname(String(name || '')).toLowerCase().replace('.', '') || 'pdf');
+  const removeLibraryFile = async key => { if (key) await fs.promises.unlink(path.join(LIBRARY_DIR, path.basename(key))).catch(() => {}); };
+
+  function libraryFields(req) {
+    const errors = [];
+    const title = normalizeText(req.body.title, 200);
+    if (!title) errors.push('عنوان فایل الزامی است.');
+    const category = LIBRARY_CATEGORIES.includes(req.body.category) ? req.body.category : 'other';
+    const mabhas = req.body.mabhas_number === '' || req.body.mabhas_number == null ? null : intInRange(req.body.mabhas_number, 1, 30, null);
+    if (category === 'mabhas' && !mabhas) errors.push('برای مبحث مقررات ملی، شماره مبحث (۱ تا ۲۲) را وارد کنید.');
+    const year = req.body.edition_year ? intInRange(digitsEnglish(req.body.edition_year), 1300, 1500, null) : null;
+    const externalUrl = normalizeText(req.body.external_url, 1000);
+    if (externalUrl && !isHttpsUrl(externalUrl)) errors.push('پیوند خارجی باید با https:// شروع شود.');
+    return { errors, values: {
+      title, title_en: normalizeText(req.body.title_en, 200) || null, description: normalizeText(req.body.description, 1500) || null,
+      description_en: normalizeText(req.body.description_en, 1500) || null, category, mabhas_number: mabhas, edition: normalizeText(req.body.edition, 80) || null,
+      edition_year: year, external_url: externalUrl || null, is_published: req.body.is_published === 'on', is_current: req.body.is_current === 'on',
+      sort_order: intInRange(req.body.sort_order, -100000, 100000, 0) } };
+  }
+
+  app.get('/library', asyncRoute(async (req, res) => {
+    const category = LIBRARY_CATEGORIES.includes(req.query.category) ? req.query.category : '';
+    const q = normalizeText(req.query.q, 100);
+    const params = []; const where = ['is_published'];
+    if (category) { params.push(category); where.push(`category=$${params.length}`); }
+    if (q) {
+      const term = `%${digitsEnglish(q).replace(/[%_\\]/g, m => '\\' + m)}%`; params.push(term);
+      where.push(`(title ILIKE $${params.length} OR COALESCE(title_en,'') ILIKE $${params.length} OR COALESCE(description,'') ILIKE $${params.length} OR COALESCE(edition,'') ILIKE $${params.length} OR ('مبحث ' || mabhas_number::text) ILIKE $${params.length} OR mabhas_number::text = $${params.length + 1})`);
+      params.push(digitsEnglish(q).replace(/\D/g, '') || '-');
+    }
+    const docs = (await pool.query(`SELECT id,title,title_en,description,description_en,category,mabhas_number,edition,edition_year,file_key,file_name,file_size,file_type,external_url,is_current,download_count,updated_at
+      FROM library_documents WHERE ${where.join(' AND ')} ORDER BY (category='mabhas') DESC, mabhas_number NULLS LAST, is_current DESC, edition_year DESC NULLS LAST, sort_order, id`, params)).rows;
+    const counts = Object.fromEntries((await pool.query('SELECT category, COUNT(*)::int n FROM library_documents WHERE is_published GROUP BY category')).rows.map(r => [r.category, r.n]));
+    res.render('library', { title: res.locals.t('library.pageTitle'), metaDescription: res.locals.t('library.metaDescription'), docs, category, q, counts, categories: LIBRARY_CATEGORIES });
+  }));
+
+  app.get('/library/:id/file', asyncRoute(async (req, res) => {
+    const r = await pool.query('SELECT * FROM library_documents WHERE id=$1', [req.params.id]);
+    const doc = r.rows[0];
+    const canPreview = !!req.admin && hasPermission(req.admin.role, 'content');
+    if (!doc || (!doc.is_published && !canPreview)) return renderError(res, 404, res.locals.t('errorPage.notFoundTitle'), res.locals.t('library.fileMissing'));
+    if (doc.is_published) pool.query('UPDATE library_documents SET download_count=download_count+1 WHERE id=$1', [doc.id]).catch(() => {});
+    if (!doc.file_key) return res.redirect(doc.external_url);
+    const filePath = path.join(LIBRARY_DIR, path.basename(doc.file_key));
+    if (!fs.existsSync(filePath)) return renderError(res, 404, res.locals.t('errorPage.notFoundTitle'), res.locals.t('library.fileMissing'));
+    const name = doc.file_name || `document.${doc.file_type || 'pdf'}`;
+    res.setHeader('Cache-Control', doc.is_published ? 'public, max-age=3600' : 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (doc.file_type === 'pdf' && req.query.download !== '1') {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(name)}`);
+    } else res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+    res.sendFile(filePath);
+  }));
+
+  app.get('/admin/library', requireAdmin, asyncRoute(async (req, res) => {
+    const r = await pool.query('SELECT * FROM library_documents ORDER BY (category=\'mabhas\') DESC, mabhas_number NULLS LAST, is_current DESC, edition_year DESC NULLS LAST, sort_order, id');
+    res.render('admin/library', { title: res.locals.t('adminLibrary.title'), docs: r.rows });
+  }));
+  app.get('/admin/library/new', requireAdmin, (_req, res) => res.render('admin/library-form', { title: res.locals.t('adminLibrary.new'), doc: null, maxUploadMb: MAX_UPLOAD_MB, categories: LIBRARY_CATEGORIES }));
+  app.post('/admin/library', requireAdmin, libraryUpload, multipartCsrf, verifyUploads(libraryPolicy, '/admin/library/new'), asyncRoute(async (req, res) => {
+    const { errors, values } = libraryFields(req);
+    if (!req.file && !values.external_url) errors.push('یک فایل بارگذاری کنید یا پیوند رسمی فایل را وارد کنید.');
+    if (errors.length) { removeUploaded(req); setFlash(req, 'error', errors.join(' ')); return res.redirect('/admin/library/new'); }
+    const f = req.file;
+    await pool.query(`INSERT INTO library_documents (title,title_en,description,description_en,category,mabhas_number,edition,edition_year,external_url,is_published,is_current,sort_order,file_key,file_name,file_size,file_type)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+      [values.title, values.title_en, values.description, values.description_en, values.category, values.mabhas_number, values.edition, values.edition_year, values.external_url, values.is_published, values.is_current, values.sort_order,
+        f ? f.filename : null, f ? normalizeText(f.originalname, 200) : null, f ? f.size : null, f ? libraryFileType(f.originalname) : libraryFileType(new URL(values.external_url).pathname)]);
+    setFlash(req, 'success', 'فایل به کتابخانه اضافه شد.'); res.redirect('/admin/library');
+  }));
+  app.get('/admin/library/:id/edit', requireAdmin, asyncRoute(async (req, res) => {
+    const r = await pool.query('SELECT * FROM library_documents WHERE id=$1', [req.params.id]);
+    if (!r.rowCount) return renderError(res, 404, 'پیدا نشد', 'این فایل پیدا نشد.');
+    res.render('admin/library-form', { title: res.locals.t('adminLibrary.edit'), doc: r.rows[0], maxUploadMb: MAX_UPLOAD_MB, categories: LIBRARY_CATEGORIES });
+  }));
+  app.post('/admin/library/:id/edit', requireAdmin, libraryUpload, multipartCsrf, verifyUploads(libraryPolicy, req => `/admin/library/${req.params.id}/edit`), asyncRoute(async (req, res) => {
+    const existing = (await pool.query('SELECT * FROM library_documents WHERE id=$1', [req.params.id])).rows[0];
+    if (!existing) { removeUploaded(req); return renderError(res, 404, 'پیدا نشد', 'این فایل پیدا نشد.'); }
+    const { errors, values } = libraryFields(req);
+    const removeFile = req.body.remove_file === 'on' && !req.file;
+    const keepsFile = !!req.file || (!!existing.file_key && !removeFile);
+    if (!keepsFile && !values.external_url) errors.push('یک فایل بارگذاری کنید یا پیوند رسمی فایل را وارد کنید.');
+    if (errors.length) { removeUploaded(req); setFlash(req, 'error', errors.join(' ')); return res.redirect(`/admin/library/${existing.id}/edit`); }
+    const f = req.file;
+    const file = f ? { key: f.filename, name: normalizeText(f.originalname, 200), size: f.size, type: libraryFileType(f.originalname) }
+      : removeFile ? { key: null, name: null, size: null, type: libraryFileType(new URL(values.external_url).pathname) }
+        : { key: existing.file_key, name: existing.file_name, size: existing.file_size, type: existing.file_key ? existing.file_type : libraryFileType(new URL(values.external_url).pathname) };
+    await pool.query(`UPDATE library_documents SET title=$1,title_en=$2,description=$3,description_en=$4,category=$5,mabhas_number=$6,edition=$7,edition_year=$8,external_url=$9,is_published=$10,is_current=$11,sort_order=$12,
+      file_key=$13,file_name=$14,file_size=$15,file_type=$16,updated_at=now() WHERE id=$17`,
+      [values.title, values.title_en, values.description, values.description_en, values.category, values.mabhas_number, values.edition, values.edition_year, values.external_url, values.is_published, values.is_current, values.sort_order,
+        file.key, file.name, file.size, file.type, existing.id]);
+    if (existing.file_key && existing.file_key !== file.key) await removeLibraryFile(existing.file_key);
+    setFlash(req, 'success', 'فایل به‌روزرسانی شد.'); res.redirect('/admin/library');
+  }));
+  app.post('/admin/library/:id/delete', requireAdmin, asyncRoute(async (req, res) => {
+    const r = await pool.query('DELETE FROM library_documents WHERE id=$1 RETURNING file_key', [req.params.id]);
+    if (r.rowCount) await removeLibraryFile(r.rows[0].file_key);
+    setFlash(req, r.rowCount ? 'success' : 'error', r.rowCount ? 'فایل از کتابخانه حذف شد.' : 'این فایل پیدا نشد.');
+    res.redirect('/admin/library');
   }));
 
   app.use((req, res) => renderError(res, 404, res.locals.t('errorPage.notFoundTitle'), res.locals.t('errorPage.notFoundMessage')));

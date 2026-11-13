@@ -31,6 +31,7 @@
 <% if (locals.aiAssistantEnabled) { %>      <a href="/assistant"><%= t('nav.assistant') %></a>
 <% } %>      <a href="/shop"><%= t('nav.shop') %></a>
       <a href="/articles"><%= t('nav.articles') %></a>
+      <a href="/library"><%= t('nav.library') %></a>
 <% if (coverageMapEnabled) { %>      <a href="/coverage-map"><%= t('nav.coverageMap') %></a>
 <% } %>      <a href="/about"><%= t('nav.about') %></a>
       <% if (currentUser) { %><a href="/account/tickets"><%= t('nav.support') %></a><% } %>
@@ -42,10 +43,10 @@
         <a href="/lang/en?next=<%= encodeURIComponent(currentPath) %>" class="lang-option <%= locale==='en'?'is-active':'' %>" lang="en">EN</a>
       </div>
       <% if (currentAdmin) { %>
-        <a class="user-chip" href="/admin/account"><span class="avatar-mini"><%= currentAdmin.username.slice(0,1).toUpperCase() %></span><span><%= currentAdmin.username %></span></a>
+        <a class="user-chip" href="/admin/account" title="<%= currentAdmin.username %>"><span class="avatar-mini" aria-hidden="true"><%= currentAdmin.username.slice(0,1).toUpperCase() %></span><span class="user-chip-name"><%= currentAdmin.username %></span></a>
         <form action="/admin/logout" method="post" class="inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-quiet button-small" type="submit"><%= t('nav.adminLogout') %></button></form>
       <% } else if (currentUser) { %>
-        <a class="user-chip" href="/account"><span class="avatar-mini"><%= (currentUser.first_name || currentUser.phone).slice(0,1) %></span><span><%= currentUser.first_name || t('nav.account') %></span></a>
+        <a class="user-chip" href="/account"><span class="avatar-mini" aria-hidden="true"><%= (currentUser.first_name || currentUser.phone).slice(0,1) %></span><span class="user-chip-name"><%= currentUser.first_name || t('nav.account') %></span></a>
         <form action="/logout" method="post" class="inline-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-quiet button-small" type="submit"><%= t('nav.logout') %></button></form>
       <% } else { %>
         <a class="button button-dark button-small" href="/login"><%= t('nav.login') %></a>

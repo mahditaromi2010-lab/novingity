@@ -1,0 +1,21 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<%
+  const nf = n => Number(n || 0).toLocaleString('fa-IR');
+  const size = b => b ? (b >= 1048576 ? `${nf(Math.round(b / 104857.6) / 10)} MB` : `${nf(Math.max(1, Math.round(b / 1024)))} KB`) : '';
+%>
+<div class="admin-topbar"><div><span class="section-kicker">LIBRARY</span><h1><%= t('adminLibrary.title') %></h1><p><%= t('adminLibrary.subtitle') %></p></div><div class="topbar-actions"><a href="/library" class="button button-outline button-small" target="_blank" rel="noopener"><%= t('adminNav.viewSite') %> ↗</a><a href="/admin/library/new" class="button button-primary button-small">＋ <%= t('adminLibrary.new') %></a></div></div>
+<section class="admin-panel">
+  <div class="table-responsive"><table class="data-table"><caption class="sr-only"><%= t('adminLibrary.title') %></caption>
+  <thead><tr><th scope="col"><%= t('adminLibrary.colTitle') %></th><th scope="col"><%= t('adminLibrary.colCategory') %></th><th scope="col"><%= t('adminLibrary.colEdition') %></th><th scope="col"><%= t('adminLibrary.colSource') %></th><th scope="col"><%= t('adminLibrary.colStatus') %></th><th scope="col"><%= t('adminLibrary.colDownloads') %></th><th scope="col"><span class="sr-only"><%= t('common.edit') %></span></th></tr></thead><tbody>
+  <% docs.forEach(d => { %><tr>
+    <td><b><%= d.title %></b><% if (d.mabhas_number) { %><br><small>مبحث <%= nf(d.mabhas_number) %></small><% } %></td>
+    <td><%= t('library.cat.' + d.category) %></td>
+    <td><%= d.edition || '—' %><% if (d.is_current) { %> <span class="status-pill status-published"><%= t('library.current') %></span><% } %></td>
+    <td><% if (d.file_key) { %><a href="/library/<%= d.id %>/file" target="_blank" rel="noopener"><%= t('adminLibrary.uploaded') %></a> <small dir="ltr"><%= String(d.file_type || '').toUpperCase() %> <%= size(d.file_size) %></small><% } else { %><a href="<%= d.external_url %>" target="_blank" rel="noopener noreferrer"><%= t('adminLibrary.external') %> ↗</a><% } %></td>
+    <td><span class="status-pill <%= d.is_published ? 'status-published' : 'status-archived' %>"><%= d.is_published ? t('adminLibrary.published') : t('adminLibrary.hidden') %></span></td>
+    <td><%= nf(d.download_count) %></td>
+    <td><div class="row-actions"><a href="/admin/library/<%= d.id %>/edit"><%= t('common.edit') %></a><form action="/admin/library/<%= d.id %>/delete" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button-link danger-text" data-confirm="<%= t('adminLibrary.deleteConfirm') %>" data-confirm-label="<%= t('common.delete') %>"><%= t('common.delete') %></button></form></div></td>
+  </tr><% }) %>
+  <% if (!docs.length) { %><tr><td colspan="7" class="table-empty"><%= t('adminLibrary.empty') %></td></tr><% } %>
+  </tbody></table></div>
+</section></div></div><%- include('../partials/footer') %>
