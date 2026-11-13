@@ -847,5 +847,14 @@
   "adminLibrary.fPublished": "Published",
   "adminLibrary.fCurrent": "This is the current edition",
   "adminLibrary.fOrder": "Display order",
-  "adminLibrary.deleteConfirm": "Delete this file from the library? An uploaded file is removed too."
+  "adminLibrary.deleteConfirm": "Delete this file from the library? An uploaded file is removed too.",
+  "seo.homeTitle": "Novingity | Building services calculators, training and gas regulations",
+  "seo.homeDescription": "Free building services calculators (gas pipe sizing, air supply, flues, meters), courses and AutoCAD plugins, and Iran's National Building Regulations — based on Part 17.",
+  "seo.toolsTitle": "Building services calculators: gas pipe sizing, flues and meters",
+  "seo.toolsDescription": "Free calculators for low-pressure and 2 psi gas pipe sizing, combustion air openings, flues, meter capacity and fuel conversion, based on the tables of Mabhas 17.",
+  "seo.shopTitle": "Building services courses and AutoCAD plugins",
+  "seo.shopDescription": "Practical courses on mechanical services and gas piping design, and AutoCAD plugins that speed up drafting; with previews and lifetime access.",
+  "seo.articlesTitle": "Articles on building services and gas piping",
+  "seo.articlesDescription": "Practical articles on designing and installing building services, gas piping, flues and combustion air, in plain language and based on the national regulations.",
+  "seo.aboutDescription": "About Novingity: the engineering team behind the building services calculators, training and technical resources; our goal, approach and how to reach us."
 }
