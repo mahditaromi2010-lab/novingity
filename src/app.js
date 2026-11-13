@@ -24,6 +24,7 @@ const { listMigrations } = require('./lib/migrations');
 const { i18nMiddleware, resolveLocale, DEFAULT_LOCALE, LOCALE_COOKIE } = require('./lib/i18n');
 const { filterCoverageAreas, summarizeCoverageAreas, statusColor: coverageTone } = require('./lib/coverage-filter');
 const { mapTileConfig, mapirKeyStatus } = require('./lib/map-tiles');
+const seo = require('./lib/seo');
 const { createGateway } = require('./lib/ai/gateway');
 const { createMabhas17Assistant } = require('./lib/ai/mabhas17-assistant');
 
@@ -238,6 +239,11 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     res.locals.roleHome = null;
     res.locals.currentPath = req.path;
     res.locals.requestId = req.id;
+    // SEO defaults for every page (canonical, hreflang, robots, Open Graph); routes add structuredData/ogImage/ogType.
+    res.locals.seo = seo.seoFor({ appUrl: APP_URL, path: req.path, query: req.query, locale: res.locals.locale });
+    res.locals.appUrl = APP_URL;
+    res.locals.httpStatus = () => res.statusCode;
+    res.locals.seoJsonLd = nodes => seo.jsonLd([seo.organization(APP_URL, res.locals.siteName, res.locals.siteEmail), ...nodes]);
     res.locals.flash = req.session.flash || null;
     res.locals.statusLabels = localizedLabels(res.locals.t, STATUS_LABELS, 'statusLabel');
     res.locals.orderStatusLabels = localizedLabels(res.locals.t, ORDER_STATUS_LABELS, 'orderStatusLabel');
@@ -495,13 +501,13 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
       pool.query("SELECT * FROM products WHERE status='published' ORDER BY featured DESC, created_at DESC LIMIT 3"),
       pool.query("SELECT * FROM articles WHERE status='published' ORDER BY published_at DESC NULLS LAST, created_at DESC LIMIT 3")
     ]);
-    res.render('home', { title: res.locals.t('page.home'), settings, products: products.rows, articles: articles.rows });
+    res.render('home', { title: res.locals.t('seo.homeTitle'), fullTitle: true, metaDescription: res.locals.t('seo.homeDescription'), structuredData: [seo.website(APP_URL, res.locals.siteName, res.locals.locale)], settings, products: products.rows, articles: articles.rows });
   }));
   app.get('/shop', asyncRoute(async (req, res) => {
     const type = ['course', 'plugin'].includes(req.query.type) ? req.query.type : '';
     const { where, params, q } = buildWhere({ q: req.query.q, searchColumns: ['title', 'short_description', 'category'], filters: [['product_type', type]], base: ["status='published'"] });
     const products = await pool.query(`SELECT * FROM products ${where} ORDER BY featured DESC, created_at DESC`, params);
-    res.render('shop', { title: res.locals.t('page.shop'), products: products.rows, type, q });
+    res.render('shop', { title: res.locals.t('seo.shopTitle'), metaDescription: res.locals.t('seo.shopDescription'), products: products.rows, type, q });
   }));
   app.get('/shop/:slug', asyncRoute(async (req, res) => {
     const p = await pool.query("SELECT * FROM products WHERE slug=$1 AND status='published'", [req.params.slug]);
@@ -516,12 +522,19 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     // Gallery for every product type (courses too); tutorial parts are a plugin feature.
     const gallery = (await pool.query('SELECT id,image_path,caption FROM product_gallery_images WHERE product_id=$1 ORDER BY sort_order,id', [product.id])).rows;
     const demoSteps = product.product_type === 'plugin' ? await loadDemoSteps(product.id) : [];
-    res.render('product', { title: product.title, product, assets: assets.rows, owned, gallery, demoSteps });
+    const lf = res.locals.localizedField;
+    const pTitle = lf(product, 'title', 'title_en');
+    const pDesc = seo.plain(lf(product, 'short_description', 'short_description_en') || lf(product, 'subtitle', 'subtitle_en') || lf(product, 'description', 'description_en')).slice(0, 160);
+    const pImage = seo.absolute(APP_URL, product.cover_image);
+    res.render('product', { title: pTitle, metaDescription: pDesc || undefined, ogType: 'product', ogImage: pImage, englishAvailable: !!(product.title_en && (product.description_en || product.short_description_en)),
+      structuredData: [seo.productLd({ appUrl: APP_URL, canonical: res.locals.seo.canonical, product, title: pTitle, description: pDesc, image: pImage }),
+        seo.breadcrumbs([{ name: res.locals.t('tools.breadcrumbHome'), url: seo.localeUrl(APP_URL, '/', res.locals.locale) }, { name: res.locals.t('nav.shop'), url: seo.localeUrl(APP_URL, '/shop', res.locals.locale) }, { name: pTitle, url: res.locals.seo.canonical }])],
+      product, assets: assets.rows, owned, gallery, demoSteps });
   }));
   app.get('/articles', asyncRoute(async (req, res) => {
     const { where, params, q } = buildWhere({ q: req.query.q, searchColumns: ['title', 'excerpt', 'category'], base: ["status='published'"] });
     const articles = await pool.query(`SELECT * FROM articles ${where} ORDER BY published_at DESC NULLS LAST, created_at DESC`, params);
-    res.render('articles', { title: res.locals.t('page.articles'), articles: articles.rows, q });
+    res.render('articles', { title: res.locals.t('seo.articlesTitle'), metaDescription: res.locals.t('seo.articlesDescription'), articles: articles.rows, q });
   }));
   app.get('/articles/:slug', asyncRoute(async (req, res) => {
     const r = await pool.query("SELECT * FROM articles WHERE slug=$1 AND status='published'", [req.params.slug]);
@@ -529,13 +542,19 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     const article = r.rows[0];
     const images = await pool.query('SELECT id,image_path,alt_text,sort_order FROM article_images WHERE article_id=$1 ORDER BY sort_order,id', [article.id]);
     const bodySource = (req.locale === 'en' && article.content_en) ? article.content_en : article.content;
-    res.render('article', { title: article.title, article, contentHtml: renderArticleBody(bodySource, images.rows) });
+    const aTitle = res.locals.localizedField(article, 'title', 'title_en');
+    const aDesc = seo.plain(res.locals.localizedField(article, 'excerpt', 'excerpt_en') || bodySource).slice(0, 160);
+    const aImage = seo.absolute(APP_URL, article.cover_image);
+    res.render('article', { title: aTitle, metaDescription: aDesc || undefined, ogType: 'article', ogImage: aImage, englishAvailable: !!(article.title_en && article.content_en),
+      structuredData: [seo.articleLd({ appUrl: APP_URL, canonical: res.locals.seo.canonical, article, title: aTitle, description: aDesc, image: aImage, locale: res.locals.locale }),
+        seo.breadcrumbs([{ name: res.locals.t('tools.breadcrumbHome'), url: seo.localeUrl(APP_URL, '/', res.locals.locale) }, { name: res.locals.t('nav.articles'), url: seo.localeUrl(APP_URL, '/articles', res.locals.locale) }, { name: aTitle, url: res.locals.seo.canonical }])],
+      article, contentHtml: renderArticleBody(bodySource, images.rows) });
   }));
   app.get('/about', asyncRoute(async (req, res) => {
     const [settings, team] = await Promise.all([getSettings(), pool.query('SELECT * FROM team_members WHERE is_active ORDER BY display_order,id')]);
-    res.render('about', { title: res.locals.t('page.about'), settings, teamMembers: team.rows });
+    res.render('about', { title: res.locals.t('page.about'), metaDescription: res.locals.t('seo.aboutDescription'), settings, teamMembers: team.rows });
   }));
-  app.get('/tools', (_req, res) => res.render('tools', { title: res.locals.t('page.tools') }));
+  app.get('/tools', (_req, res) => res.render('tools', { title: res.locals.t('seo.toolsTitle'), metaDescription: res.locals.t('seo.toolsDescription') }));
 
   // ---------- «دستیار مبحث ۱۷» ----------
   const aiAskLimiter = rateLimit({
@@ -601,16 +620,22 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   });
   app.get('/sitemap.xml', asyncRoute(async (_req, res) => {
     const [products, articles] = await Promise.all([
-      pool.query("SELECT slug, updated_at FROM products WHERE status='published' ORDER BY updated_at DESC LIMIT 5000"),
-      pool.query("SELECT slug, updated_at FROM articles WHERE status='published' ORDER BY updated_at DESC LIMIT 5000")
+      pool.query("SELECT slug, updated_at, (title_en IS NOT NULL AND title_en<>'' AND COALESCE(NULLIF(description_en,''), NULLIF(short_description_en,'')) IS NOT NULL) AS has_en FROM products WHERE status='published' ORDER BY updated_at DESC LIMIT 5000"),
+      pool.query("SELECT slug, updated_at, (title_en IS NOT NULL AND title_en<>'' AND content_en IS NOT NULL AND content_en<>'') AS has_en FROM articles WHERE status='published' ORDER BY updated_at DESC LIMIT 5000")
     ]);
     const esc = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const url = (loc, lastmod) => `  <url><loc>${esc(APP_URL + loc)}</loc>${lastmod ? `<lastmod>${new Date(lastmod).toISOString().slice(0, 10)}</lastmod>` : ''}</url>`;
-    const urls = ['/', '/tools', '/shop', '/articles', '/about'].map(p => url(p))
-      .concat(products.rows.map(r => url(`/shop/${encodeURIComponent(r.slug)}`, r.updated_at)))
-      .concat(articles.rows.map(r => url(`/articles/${encodeURIComponent(r.slug)}`, r.updated_at)));
+    // Persian (clean URL) and English (?lang=en) versions, each listing both as hreflang alternates.
+    const alt = (loc, en) => `<xhtml:link rel="alternate" hreflang="fa" href="${esc(seo.localeUrl(APP_URL, loc, 'fa'))}"/>${en ? `<xhtml:link rel="alternate" hreflang="en" href="${esc(seo.localeUrl(APP_URL, loc, 'en'))}"/>` : ''}<xhtml:link rel="alternate" hreflang="x-default" href="${esc(seo.localeUrl(APP_URL, loc, 'fa'))}"/>`;
+    const lm = lastmod => (lastmod ? `<lastmod>${new Date(lastmod).toISOString().slice(0, 10)}</lastmod>` : '');
+    const url = (loc, lastmod, en = true) => (en ? ['fa', 'en'] : ['fa']).map(l => `  <url><loc>${esc(seo.localeUrl(APP_URL, loc, l))}</loc>${lm(lastmod)}${alt(loc, en)}</url>`).join('\n');
+    const lib = (await pool.query('SELECT MAX(updated_at) AS m FROM library_documents WHERE is_published').catch(() => ({ rows: [{}] }))).rows[0].m;
+    const pages = [['/'], ['/tools'], ['/shop'], ['/articles'], ['/library', lib], ['/about']];
+    if (COVERAGE_MAP_ENABLED) pages.push(['/coverage-map']);
+    const urls = pages.map(([p, m]) => url(p, m))
+      .concat(products.rows.map(r => url(`/shop/${encodeURIComponent(r.slug)}`, r.updated_at, r.has_en)))
+      .concat(articles.rows.map(r => url(`/articles/${encodeURIComponent(r.slug)}`, r.updated_at, r.has_en)));
     res.set('Cache-Control', 'public, max-age=3600');
-    res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`);
+    res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join('\n')}\n</urlset>\n`);
   }));
 
   async function readCoverageAreas() {
@@ -1668,7 +1693,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     const docs = (await pool.query(`SELECT id,title,title_en,description,description_en,category,mabhas_number,edition,edition_year,file_key,file_name,file_size,file_type,external_url,is_current,download_count,updated_at
       FROM library_documents WHERE ${where.join(' AND ')} ORDER BY (category='mabhas') DESC, mabhas_number NULLS LAST, is_current DESC, edition_year DESC NULLS LAST, sort_order, id`, params)).rows;
     const counts = Object.fromEntries((await pool.query('SELECT category, COUNT(*)::int n FROM library_documents WHERE is_published GROUP BY category')).rows.map(r => [r.category, r.n]));
-    res.render('library', { title: res.locals.t('library.pageTitle'), metaDescription: res.locals.t('library.metaDescription'), docs, category, q, counts, categories: LIBRARY_CATEGORIES });
+    res.render('library', { title: res.locals.t('library.pageTitle'), metaDescription: res.locals.t('library.metaDescription'), structuredData: [seo.breadcrumbs([{ name: res.locals.t('tools.breadcrumbHome'), url: seo.localeUrl(APP_URL, '/', res.locals.locale) }, { name: res.locals.t('nav.library'), url: seo.localeUrl(APP_URL, '/library', res.locals.locale) }])], docs, category, q, counts, categories: LIBRARY_CATEGORIES });
   }));
 
   app.get('/library/:id/file', asyncRoute(async (req, res) => {
