@@ -211,30 +211,41 @@ html[dir="ltr"] .gs-labels text { transform: scaleX(-1); transform-box: fill-box
 .gs-ground { stroke: var(--ink); stroke-width: 1.5; }
 .gs-hatch { stroke: var(--rule); stroke-width: 1; }
 .gs-pipe { fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-.gs-flow path { fill: none; stroke: var(--emerald-glow); stroke-width: 4; stroke-linecap: round; stroke-dasharray: .012 .05; opacity: 0; }
+.gs-pipe { stroke: var(--ink); }
+/* gas, not liquid: soft translucent pale-yellow pulses (gas pipes are colour-coded yellow) drifting along the pipe */
+.gs-flow path { fill: none; stroke: #ffd84d; stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: .03 .07; opacity: 0; }
+.gs-flue { fill: none; stroke: var(--steel); stroke-width: 3; stroke-linecap: round; }
 .gs-box { fill: var(--sheet); stroke: var(--ink); stroke-width: 2; }
 .gs-meter { fill: #fff; }
 .gs-dial { fill: var(--emerald-tint); stroke: var(--ink); stroke-width: 1.6; }
-.gs-needle { stroke: var(--emerald-deep); stroke-width: 2.4; stroke-linecap: round; transform-box: view-box; transform-origin: 470px 168px; }
+.gs-needle { stroke: var(--emerald-deep); stroke-width: 2.4; stroke-linecap: round; transform-box: view-box; transform-origin: 470px 172px; }
 .gs-window { fill: var(--night); }
 .gs-detail { stroke: var(--steel); stroke-width: 1.4; fill: none; stroke-linecap: round; }
 .gs-valve { fill: var(--sheet); stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
-.gs-stem { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; transform-box: view-box; transform-origin: 470px 300px; }
+.gs-valve-sm { stroke-width: 1.6; }
+/* ball-valve lever: starts across the pipe (closed) and turns parallel to it (open) */
+.gs-stem { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; transform-box: view-box; transform-origin: var(--ox) var(--oy); }
 .gs-dim { stroke: var(--steel); stroke-width: 1.2; fill: none; }
-.gs-flames path { fill: var(--flame); transform-box: fill-box; transform-origin: 50% 100%; }
+/* natural gas burns blue with a lighter core */
+.gs-flames path { fill: #2f7de1; stroke: #9cc9ff; stroke-width: 1.2; transform-box: fill-box; transform-origin: 50% 100%; }
 .gs-labels text { font: 700 13px Vazirmatn, Tahoma, sans-serif; fill: var(--ink-2); text-anchor: middle; direction: ltr; unicode-bidi: plaintext; }
 .gs-labels .gs-label-slope { transform: rotate(-30deg); transform-box: fill-box; transform-origin: center; }
+.gs-labels .gs-label-dim { font-size: 11.5px; fill: var(--steel); transform: rotate(-90deg); transform-box: fill-box; transform-origin: center; }
+html[dir="ltr"] .gs-labels .gs-label-dim { transform: scaleX(-1) rotate(90deg); }
 html[dir="ltr"] .gs-labels .gs-label-slope { transform: scaleX(-1) rotate(30deg); }
 
-/* Story (2.9 s): pipes are drawn → appliances appear → valve opens → gas flows → meter wakes → flames ignite. */
+/* Story (~3.2 s): pipes are drawn → appliances, valves and flues appear → riser valve, then main valve open
+   (levers turn parallel to the pipe) → gas flows → meter wakes → burners ignite (blue). */
 @media (prefers-reduced-motion: no-preference) {
   .gs-pipe { stroke-dasharray: 1; animation: gs-draw 1000ms var(--ease-in-out) backwards; animation-delay: calc(250ms + var(--d) * 420ms); }
   .gs-ground, .gs-hatch { animation: ng-fade 600ms var(--ease-out) 100ms backwards; }
   .gs-parts > * { animation: gs-appear 500ms var(--ease-out) 1300ms backwards; }
   .gs-stem { animation: gs-valve-open 520ms var(--ease-spring) 1900ms backwards; }
-  .gs-flow path { animation: gs-flow-on 400ms linear 2350ms forwards, gs-flow 2.8s linear 2350ms infinite; }
-  .gs-needle { animation: gs-needle-wake 900ms var(--ease-spring) 2400ms backwards, gs-needle-live 2.6s ease-in-out 3300ms infinite alternate; }
-  .gs-flames path { animation: gs-ignite 520ms var(--ease-spring) backwards, gs-flicker 1.4s ease-in-out infinite alternate; animation-delay: calc(2650ms + var(--f) * 140ms), calc(3200ms + var(--f) * 180ms); }
+  .gs-stem-2 { animation-delay: 2050ms; }
+  .gs-flues { animation: ng-fade 500ms var(--ease-out) 1300ms backwards; }
+  .gs-flow path { animation: gs-flow-on 400ms linear 2550ms forwards, gs-flow 3.6s linear 2550ms infinite; }
+  .gs-needle { animation: gs-needle-wake 900ms var(--ease-spring) 2600ms backwards, gs-needle-live 2.6s ease-in-out 3300ms infinite alternate; }
+  .gs-flames path { animation: gs-ignite 520ms var(--ease-spring) backwards, gs-flicker 1.4s ease-in-out infinite alternate; animation-delay: calc(2900ms + var(--f) * 140ms), calc(3450ms + var(--f) * 180ms); }
   .gs-labels text { animation: ng-fade 500ms var(--ease-out) 2000ms backwards; }
   .gs-callout, .gs-titleblock { animation: ng-fade 500ms var(--ease-out) backwards; }
   .gs-callout-top { animation-delay: 2500ms; }
@@ -249,7 +260,7 @@ html[dir="ltr"] .gs-labels .gs-label-slope { transform: scaleX(-1) rotate(30deg)
 @keyframes gs-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 @keyframes gs-appear { from { opacity: 0; } }
 @keyframes gs-valve-open { from { rotate: 90deg; } }
-@keyframes gs-flow-on { to { opacity: .95; } }
+@keyframes gs-flow-on { to { opacity: .85; } }
 @keyframes gs-flow { to { stroke-dashoffset: -.62; } }
 @keyframes gs-needle-wake { from { rotate: -150deg; } }
 @keyframes gs-needle-live { from { rotate: -4deg; } to { rotate: 5deg; } }
@@ -269,7 +280,7 @@ html[dir="ltr"] .gs-meter-link { inset-inline-start: 9.5%; }
 }
 .gs-callout b { font-size: 14px; color: var(--ink); }
 .gs-callout small { color: var(--steel); font-size: 12.5px; }
-.gs-callout-top { top: 3%; inset-inline-start: 22%; }
+.gs-callout-top { top: 3%; inset-inline-start: 13%; --leader: 12cqw; } /* leader lands on the meter, clear of the pipes */
 .gs-callout-top::after { /* leader line toward the meter */
   content: ""; position: absolute; top: 100%; inset-inline-start: 18px; width: 1.5px; height: var(--leader, 17cqw); background: var(--ink);
 }

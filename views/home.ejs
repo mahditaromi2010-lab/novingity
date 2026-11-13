@@ -9,39 +9,54 @@
       <div class="hero-trust"><span class="trust-check">✓</span> <%= t('home.hero.trustLeft') %> <span class="trust-separator">•</span> <%= t('home.hero.trustRight') %></div>
     </div>
     <div class="hero-visual">
-      <%# Signature moment: an isometric gas-installation drawing (supply, riser, valve, meter, branches to a
-          water heater, cooker and space heater) that draws itself, ignites, then shows gas flowing. Pure SVG +
-          CSS (public/css/elevate.css, "gas-sheet"); motion.js only pauses it off-screen. Static when the
-          visitor prefers reduced motion. %>
+      <%# Signature moment: an isometric gas-installation drawing that draws itself, then gas flows in the
+          real order: supply (¼ psi) → riser valve opens → meter → main valve → branches, each with its own
+          appliance valve → water heater, cooker, space heater ignite (natural gas burns blue). Ball-valve levers
+          end PARALLEL to the pipe (= open); flued appliances have flues; meter height per 17-4-10-3-6.
+          Pure SVG + CSS (public/css/elevate.css, "gas-sheet"); motion.js only pauses it off-screen. Static when
+          the visitor prefers reduced motion. %>
       <svg class="gas-sheet" viewBox="0 0 560 450" focusable="false" aria-hidden="true">
         <g class="gs-geo">
           <path class="gs-ground" d="M150 412 H548"/>
           <path class="gs-hatch" d="M160 412 l-10 10 M190 412 l-10 10 M220 412 l-10 10 M250 412 l-10 10 M280 412 l-10 10 M310 412 l-10 10 M340 412 l-10 10 M370 412 l-10 10 M400 412 l-10 10 M430 412 l-10 10 M460 412 l-10 10 M490 412 l-10 10 M520 412 l-10 10"/>
+          <g class="gs-flues">
+            <path class="gs-flue" d="M186 318 V258 M176 258 H196 M179 251 H193"/>
+            <path class="gs-flue" d="M390 352 V322 M380 322 H400 M383 315 H397"/>
+          </g>
           <g class="gs-pipes">
-            <path class="gs-pipe" style="--d:0" pathLength="1" d="M560 384 H470 V210"/>
-            <path class="gs-pipe" style="--d:1" pathLength="1" d="M440 176 H408 L200 296 V318"/>
+            <path class="gs-pipe" style="--d:0" pathLength="1" d="M560 384 H516 V128 H486 V142"/>
+            <path class="gs-pipe" style="--d:1" pathLength="1" d="M454 142 V112 H408 V176 L200 296 V318"/>
             <path class="gs-pipe" style="--d:2" pathLength="1" d="M304 236 V296"/>
             <path class="gs-pipe" style="--d:2" pathLength="1" d="M372 197 V352"/>
           </g>
           <g class="gs-flow">
-            <path pathLength="1" d="M560 384 H470 V210"/>
-            <path pathLength="1" d="M440 176 H408 L200 296 V318"/>
+            <path pathLength="1" d="M560 384 H516 V128 H486 V142"/>
+            <path pathLength="1" d="M454 142 V112 H408 V176 L200 296 V318"/>
             <path pathLength="1" d="M304 236 V296"/>
             <path pathLength="1" d="M372 197 V352"/>
           </g>
           <g class="gs-parts">
-            <path class="gs-valve" d="M458 290 L482 310 V290 L458 310 Z"/>
-            <path class="gs-stem" d="M470 300 V284 M462 284 H478"/>
+            <%# riser valve (vertical pipe) + main valve after the meter (horizontal pipe) %>
+            <path class="gs-valve" d="M506 288 H526 L506 312 H526 Z"/>
+            <path class="gs-detail gs-spindle" d="M506 300 H494"/>
+            <path class="gs-stem" style="--ox:494px; --oy:300px" d="M494 288 V312"/>
+            <path class="gs-valve" d="M420 102 L440 122 V102 L420 122 Z"/>
+            <path class="gs-detail gs-spindle" d="M430 102 V92"/>
+            <path class="gs-stem gs-stem-2" style="--ox:430px; --oy:92px" d="M419 92 H441"/>
             <rect class="gs-box gs-meter" x="440" y="142" width="60" height="68" rx="6"/>
-            <circle class="gs-dial" cx="470" cy="168" r="12"/>
-            <path class="gs-needle" d="M470 168 L478 161"/>
+            <circle class="gs-dial" cx="470" cy="172" r="12"/>
+            <path class="gs-needle" d="M470 172 L478 165"/>
+            <%# appliance valves: one per appliance (17-4-10-4-1) %>
+            <path class="gs-valve gs-valve-sm" d="M195 301 H205 L195 313 H205 Z"/>
+            <path class="gs-valve gs-valve-sm" d="M299 262 H309 L299 274 H309 Z"/>
+            <path class="gs-valve gs-valve-sm" d="M367 318 H377 L367 330 H377 Z"/>
             <rect class="gs-box" x="176" y="318" width="48" height="94" rx="6"/>
             <rect class="gs-window" x="188" y="384" width="24" height="16" rx="3"/>
             <rect class="gs-box" x="268" y="296" width="72" height="46" rx="4"/>
             <path class="gs-detail" d="M276 320 H332 M282 332 h8 M300 332 h8 M318 332 h8"/>
             <rect class="gs-box" x="344" y="352" width="56" height="44" rx="4"/>
             <path class="gs-detail" d="M352 362 H392 M352 370 H392 M352 378 H392"/>
-            <path class="gs-dim" d="M440 128 H500 M440 122 V134 M500 122 V134"/>
+            <path class="gs-dim" d="M548 142 V410 M542 142 H554 M542 410 H554"/>
           </g>
           <g class="gs-flames">
             <path style="--f:0" d="M200 398 c-5 -5 -4 -11 0 -15 c4 4 5 10 0 15 Z"/>
@@ -51,9 +66,9 @@
           </g>
           <g class="gs-labels">
             <text x="470" y="200">G4</text>
-            <text x="470" y="116">15.5 cm</text>
             <text x="318" y="204" class="gs-label-slope">Ø 1″</text>
-            <text x="522" y="372">P = ¼ psi</text>
+            <text x="538" y="272" class="gs-label-dim">180–220 cm</text>
+            <text x="534" y="402">¼ psi</text>
           </g>
         </g>
       </svg>
