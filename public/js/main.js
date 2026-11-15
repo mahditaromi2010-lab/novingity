@@ -139,3 +139,43 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
     navigator.serviceWorker.register('/sw.js').catch(() => { /* non-fatal: site still works without it */ });
   });
 }
+
+// Promo banners: arrows and dots for slots with several banners (no autoplay), and dismissible announcement bar.
+document.querySelectorAll('[data-banner-slot]').forEach(slot => {
+  const track = slot.querySelector('[data-banner-track]');
+  if (!track) return;
+  const slides = [...track.children];
+  const dots = [...slot.querySelectorAll('.nv-dots i')];
+  const current = () => {
+    const box = track.getBoundingClientRect();
+    let best = 0, bestDist = Infinity;
+    slides.forEach((s, i) => { const d = Math.abs(s.getBoundingClientRect().left - box.left); if (d < bestDist) { bestDist = d; best = i; } });
+    return best;
+  };
+  const go = i => {
+    const target = slides[(i + slides.length) % slides.length];
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    track.scrollTo({ left: target.offsetLeft - track.offsetLeft, behavior: reduce ? 'auto' : 'smooth' });
+  };
+  // "Next" follows the reading direction: in Persian the next slide is to the left.
+  slot.querySelector('[data-banner-next]')?.addEventListener('click', () => go(current() + 1));
+  slot.querySelector('[data-banner-prev]')?.addEventListener('click', () => go(current() - 1));
+  track.addEventListener('keydown', e => {
+    const rtl = document.documentElement.dir === 'rtl';
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(current() + (rtl ? 1 : -1)); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(current() + (rtl ? -1 : 1)); }
+  });
+  let raf = 0;
+  track.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => { const c = current(); dots.forEach((d, i) => d.classList.toggle('is-on', i === c)); });
+  }, { passive: true });
+});
+document.querySelectorAll('[data-announce]').forEach(bar => {
+  const key = `nv-announce-${bar.getAttribute('data-announce')}`;
+  try { if (localStorage.getItem(key) === '1') { bar.hidden = true; return; } } catch { /* storage unavailable: keep showing */ }
+  bar.querySelector('[data-announce-close]')?.addEventListener('click', () => {
+    bar.hidden = true;
+    try { localStorage.setItem(key, '1'); } catch { /* ignore */ }
+  });
+});

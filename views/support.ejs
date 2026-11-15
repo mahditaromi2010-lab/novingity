@@ -1,0 +1,82 @@
+<%- include('partials/header', {title, metaDescription}) %>
+<link rel="stylesheet" href="/public/css/assistant.css?v=<%= locals.assetVersion || '0' %>">
+<link rel="stylesheet" href="/public/css/support.css?v=<%= locals.assetVersion || '0' %>">
+<%
+  const q = f => (locale === 'en' ? f.question_en || f.question : f.question);
+  const a = f => (locale === 'en' ? f.answer_en || f.answer : f.answer);
+  const usedCats = categories.filter(c => faqs.some(f => f.category === c));
+%>
+<section class="page-hero sp-hero"><%- include('partials/hero-image', { key: 'support.hero' }) %><div class="container">
+  <div class="breadcrumb"><a href="/"><%= t('tools.breadcrumbHome') %></a><span>/</span><span><%= t('nav.support') %></span></div>
+  <span class="section-kicker"><%= t('support.kicker') %></span>
+  <h1><%= t('support.titlePre') %> <em><%= t('support.titleEm') %></em></h1>
+  <p><%= t('support.lead') %></p>
+</div></section>
+<%- include('partials/banner-slot', { slot: 'support.top' }) %>
+
+<section class="section sp-ask-section"><div class="container sp-ask-shell">
+  <div class="sp-ask-card">
+    <div class="sp-ask-head">
+      <h2><%= t('support.askTitle') %></h2>
+      <p class="as-status <%= aiLive ? 'is-live' : 'is-search' %>"><i aria-hidden="true"></i><%= aiLive ? t('support.statusLive') : t('support.statusSearch') %></p>
+    </div>
+    <div class="as-thread sp-thread" id="spThread" aria-live="polite" aria-busy="false"></div>
+    <form class="as-composer" id="spForm" autocomplete="off">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label class="sr-only" for="spQuestion"><%= t('support.inputLabel') %></label>
+      <textarea id="spQuestion" name="question" rows="2" maxlength="600" required placeholder="<%= t('support.placeholder') %>"></textarea>
+      <button class="button button-primary" type="submit" id="spSend"><%= t('support.send') %></button>
+    </form>
+    <div class="sp-chips" id="spExamples" aria-label="<%= t('support.examplesTitle') %>">
+      <% [1, 2, 3].forEach(i => { %><button type="button" class="as-example" data-example><%= t('support.example' + i) %></button><% }) %>
+    </div>
+    <p class="as-fineprint"><%= aiLive ? t('support.aiDisclaimer') : t('support.searchDisclaimer') %></p>
+  </div>
+
+  <aside class="sp-actions" aria-label="<%= t('support.otherWays') %>">
+    <a class="sp-action" href="/account/tickets/new">
+      <span class="sp-action-icon" aria-hidden="true">✉</span>
+      <span><b><%= t('support.newTicket') %></b><small><%= currentUser ? t('support.newTicketHint') : t('support.newTicketLogin') %></small></span>
+    </a>
+    <a class="sp-action" href="/account/tickets">
+      <span class="sp-action-icon" aria-hidden="true">☰</span>
+      <span><b><%= t('support.myTickets') %><% if (locals.supportUnread) { %> <span class="sp-badge"><%= supportUnread %> <%= t('support.newReplies') %></span><% } %></b>
+        <small><%= myTickets ? t('support.myTicketsCount').replace('{open}', myTickets.open).replace('{total}', myTickets.total) : t('support.myTicketsLogin') %></small></span>
+    </a>
+    <% if (assistantLink) { %><a class="sp-action" href="/assistant"><span class="sp-action-icon" aria-hidden="true">۱۷</span><span><b><%= t('nav.assistant') %></b><small><%= t('support.assistantHint') %></small></span></a>
+    <% } else { %><a class="sp-action" href="/tools"><span class="sp-action-icon" aria-hidden="true">⌗</span><span><b><%= t('nav.tools') %></b><small><%= t('support.toolsHint') %></small></span></a><% } %>
+    <div class="sp-safety" role="note"><b><%= t('support.safetyTitle') %></b><p><%= t('support.safetyText') %></p></div>
+  </aside>
+</div></section>
+
+<section class="section sp-faq-section" id="faq"><div class="container">
+  <div class="section-heading"><div><span class="section-kicker"><%= t('support.faqKicker') %></span><h2><%= t('support.faqTitle') %></h2></div></div>
+  <% if (usedCats.length > 1) { %><div class="sp-faq-filter" role="group" aria-label="<%= t('common.category') %>" data-faq-filter hidden>
+    <button type="button" class="lib-chip" aria-pressed="true" data-cat=""><%= t('library.all') %></button>
+    <% usedCats.forEach(c => { %><button type="button" class="lib-chip" aria-pressed="false" data-cat="<%= c %>"><%= t('support.cat.' + c) %></button><% }) %>
+  </div><% } %>
+  <% if (!faqs.length) { %><p class="sp-empty"><%= t('support.faqEmpty') %></p><% } %>
+  <div class="sp-faq-list">
+    <% faqs.forEach(f => { %>
+    <details class="sp-faq" id="faq-<%= f.id %>" data-cat="<%= f.category %>">
+      <summary><%= q(f) %></summary>
+      <div class="sp-faq-body"><p><%= a(f) %></p>
+        <form class="sp-vote" action="/support/faq/<%= f.id %>/vote" method="post" data-faq-vote>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <span><%= t('support.wasHelpful') %></span>
+          <button type="submit" name="helpful" value="1" class="button button-quiet button-small" aria-label="<%= t('support.wasHelpful') %> <%= t('support.yes') %>"><%= t('support.yes') %></button>
+          <button type="submit" name="helpful" value="0" class="button button-quiet button-small" aria-label="<%= t('support.wasHelpful') %> <%= t('support.no') %>"><%= t('support.no') %></button>
+        </form>
+      </div>
+    </details>
+    <% }) %>
+  </div>
+  <p class="sp-contact"><%= t('support.stillNeedHelp') %> <a href="/account/tickets/new"><%= t('support.newTicket') %></a><% if (siteEmail) { %> · <a href="mailto:<%= siteEmail %>"><%= siteEmail %></a><% } %></p>
+</div></section>
+<%
+  const ui = ['aiLabel', 'sending', 'sourcesTitle', 'fallbackTitle', 'fallbackNone', 'handoff', 'handoffButton', 'handoffLogin', 'helpful', 'notHelpful', 'thanks', 'copy', 'copied', 'error.generic', 'error.rate', 'error.empty', 'faqLabel', 'productLabel'].reduce((m, k) => { m[k] = t('support.' + k); return m; }, {});
+  ui.locale = locale; ui.signedIn = !!currentUser;
+%>
+<script type="application/json" id="support-ui"><%- JSON.stringify(ui).replace(/</g, '\\u003c') %></script>
+<script defer src="/public/js/support.js?v=<%= locals.assetVersion || '0' %>"></script>
+<%- include('partials/footer') %>

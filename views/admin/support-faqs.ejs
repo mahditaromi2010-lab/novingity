@@ -1,0 +1,35 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<link rel="stylesheet" href="/public/css/support.css?v=<%= locals.assetVersion || '0' %>"><link rel="stylesheet" href="/public/css/admin-visual.css?v=<%= locals.assetVersion || '0' %>">
+<% const nf = n => Number(n || 0).toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR'); %>
+<div class="admin-topbar"><div><span class="section-kicker">HELP CENTRE</span><h1><%= t('adminSupport.title') %></h1><p><%= t('adminSupport.subtitle') %></p></div>
+  <div class="topbar-actions"><a href="/support" class="button button-outline button-small" target="_blank" rel="noopener"><%= t('adminNav.viewSite') %> ↗</a><a href="/admin/support/faqs/new" class="button button-primary button-small">＋ <%= t('adminSupport.newFaq') %></a></div></div>
+
+<section class="admin-panel sp-ai-card">
+  <div class="admin-panel-head"><div><h2><%= t('adminSupport.aiTitle') %></h2><p><%= ai.live ? t('adminSupport.aiOn') : t('adminSupport.aiOff') %></p></div><span class="status-pill <%= ai.live ? 'status-published' : 'status-draft' %>"><%= ai.live ? t('adminSupport.on') : t('adminSupport.off') %></span></div>
+  <dl class="sp-ai-facts">
+    <div><dt><%= t('adminSupport.modelChat') %></dt><dd dir="ltr"><%= ai.models.chat %></dd></div>
+    <div><dt><%= t('adminSupport.modelTriage') %></dt><dd dir="ltr"><%= ai.models.triage %></dd></div>
+    <div><dt><%= t('adminSupport.modelDraft') %></dt><dd dir="ltr"><%= ai.models.draft %></dd></div>
+    <div><dt><%= t('adminSupport.today') %></dt><dd><%= nf(ai.usage.requests) %> / <%= nf(ai.config.dailyRequestLimit) %></dd></div>
+    <div><dt><%= t('adminSupport.feedback30') %></dt><dd>👍 <%= nf(ai.feedback.up) %> · 👎 <%= nf(ai.feedback.down) %></dd></div>
+    <div><dt><%= t('adminSupport.ticketRatings') %></dt><dd>👍 <%= nf(ratings.up) %> · 👎 <%= nf(ratings.down) %></dd></div>
+  </dl>
+  <% if (!ai.live) { %><p class="av-hint"><%= t('adminSupport.howToEnable') %></p><% } %>
+  <% if (ai.recentDown.length) { %><details class="sp-down"><summary><%= t('adminSupport.recentDown') %></summary><ul><% ai.recentDown.forEach(d => { %><li><b><%= d.question %></b><% if (d.answer) { %><p><%= d.answer.slice(0, 400) %></p><% } %></li><% }) %></ul><p class="av-hint"><%= t('adminSupport.recentDownHint') %></p></details><% } %>
+</section>
+
+<section class="admin-panel">
+  <div class="table-responsive"><table class="data-table"><caption class="sr-only"><%= t('adminSupport.title') %></caption>
+    <thead><tr><th scope="col"><%= t('adminSupport.colQuestion') %></th><th scope="col"><%= t('common.category') %></th><th scope="col"><%= t('adminSupport.colHelpful') %></th><th scope="col"><%= t('common.status') %></th><th scope="col"><span class="sr-only"><%= t('common.edit') %></span></th></tr></thead><tbody>
+    <% faqs.forEach(f => { %><tr>
+      <td><b><%= f.question %></b><% if (f.question_en) { %><small class="table-sub" dir="ltr"><%= f.question_en %></small><% } %></td>
+      <td><%= t('support.cat.' + f.category) %></td>
+      <td>👍 <%= nf(f.helpful_yes) %> · 👎 <%= nf(f.helpful_no) %></td>
+      <td><span class="status-pill <%= f.is_published ? 'status-published' : 'status-draft' %>"><%= f.is_published ? t('adminLibrary.published') : t('adminLibrary.hidden') %></span></td>
+      <td><div class="row-actions"><a href="/admin/support/faqs/<%= f.id %>/edit"><%= t('common.edit') %></a><form action="/admin/support/faqs/<%= f.id %>/delete" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button-link danger-text" data-confirm="<%= t('adminSupport.deleteConfirm') %>" data-confirm-label="<%= t('common.delete') %>"><%= t('common.delete') %></button></form></div></td>
+    </tr><% }) %>
+    <% if (!faqs.length) { %><tr><td colspan="5" class="table-empty"><%= t('adminSupport.empty') %></td></tr><% } %>
+  </tbody></table></div>
+</section>
+<p class="av-note"><%= t('adminSupport.note') %></p>
+</div></div><%- include('../partials/footer') %>

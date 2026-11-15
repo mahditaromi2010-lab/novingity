@@ -1,0 +1,2 @@
+<% const logo = locals.siteImage ? siteImage('brand.logo') : null; %>
+<% if (logo && logo.custom) { %><img src="<%= logo.src %>" alt="" width="48" height="48" decoding="async" style="object-fit:contain"><% } else { %><img src="/public/images/nogiti-logo-96.webp" srcset="/public/images/nogiti-logo-96.webp 2x, /public/images/nogiti-logo-144.webp 3x" alt="" width="48" height="48" decoding="async"><% } %>

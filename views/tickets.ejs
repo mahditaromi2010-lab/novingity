@@ -1,13 +1,22 @@
 <%- include('partials/header', {title}) %>
+<link rel="stylesheet" href="/public/css/support.css?v=<%= locals.assetVersion || '0' %>">
+<% const df = d => new Date(d).toLocaleDateString(locale === 'en' ? 'en-GB' : 'fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'medium' }); %>
 <section class="account-section section"><div class="container">
-  <div class="account-welcome"><div><span class="section-kicker"><%= t('kicker.support') %></span><h1><%= t('tickets.myTickets') %></h1><p><%= t('tickets.title') %></p></div><a class="button button-primary" href="/account/tickets/new">＋ <%= t('tickets.newTicket') %></a></div>
+  <div class="account-welcome"><div><span class="section-kicker"><%= t('kicker.support') %></span><h1><%= t('tickets.myTickets') %></h1><p><%= t('support.ticketsLead') %></p></div><div class="sp-head-actions"><a class="button button-outline" href="/support"><%= t('support.helpCentre') %></a><a class="button button-primary" href="/account/tickets/new">＋ <%= t('tickets.newTicket') %></a></div></div>
   <section class="account-panel">
     <% if (tickets.length) { %>
-    <div class="table-responsive"><table class="data-table"><caption class="sr-only"><%= t('tickets.myTickets') %></caption><thead><tr><th scope="col">#</th><th scope="col"><%= t('tickets.subject') %></th><th scope="col"><%= t('common.category') %></th><th scope="col"><%= t('common.status') %></th><th scope="col"><%= t('common.date') %></th></tr></thead><tbody>
-      <% tickets.forEach(tk => { %><tr><td><a href="/account/tickets/<%= tk.id %>">#<%= tk.id %></a></td><td><a href="/account/tickets/<%= tk.id %>"><%= tk.subject %></a></td><td><%= t('tickets.category.'+tk.category) %></td><td><span class="status-pill status-ticket-<%= tk.status %>"><%= t('tickets.status.'+tk.status) %></span></td><td><%= new Date(tk.created_at).toLocaleDateString(locale==='en'?'en-US':'fa-IR') %></td></tr><% }) %>
-    </tbody></table></div>
+    <ul class="sp-ticket-list">
+      <% tickets.forEach(tk => { %>
+      <li class="sp-ticket<%= tk.unread ? ' is-unread' : '' %><%= tk.status === 'closed' ? ' is-closed' : '' %>">
+        <a href="/account/tickets/<%= tk.id %>">
+          <span class="sp-ticket-main"><b>#<%= tk.id %> · <%= tk.subject %></b><small><%= t('tickets.category.' + tk.category) %> · <%= t('support.updated') %> <%= df(tk.updated_at) %></small></span>
+          <span class="sp-ticket-side"><% if (tk.unread) { %><span class="sp-badge"><%= t('support.newReply') %></span><% } %><span class="status-pill status-ticket-<%= tk.status %>"><%= t('tickets.status.' + tk.status) %></span></span>
+        </a>
+      </li>
+      <% }) %>
+    </ul>
     <% } else { %>
-    <div class="empty-state empty-compact"><span>✉</span><h3><%= t('tickets.empty') %></h3><a class="button button-outline" href="/account/tickets/new"><%= t('tickets.newTicket') %></a></div>
+    <div class="empty-state empty-compact"><span aria-hidden="true">✉</span><h3><%= t('tickets.empty') %></h3><p><%= t('support.emptyHint') %></p><div class="sp-head-actions"><a class="button button-outline" href="/support"><%= t('support.helpCentre') %></a><a class="button button-primary" href="/account/tickets/new"><%= t('tickets.newTicket') %></a></div></div>
     <% } %>
   </section>
 </div></section>

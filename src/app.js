@@ -27,6 +27,12 @@ const { mapTileConfig, mapirKeyStatus } = require('./lib/map-tiles');
 const seo = require('./lib/seo');
 const { createGateway } = require('./lib/ai/gateway');
 const { createMabhas17Assistant } = require('./lib/ai/mabhas17-assistant');
+const visual = require('./lib/visual');
+const { createVisualStore } = require('./lib/visual-store');
+const { registerVisualRoutes } = require('./routes/visual');
+const { registerSupportRoutes } = require('./routes/support');
+const { createSupportAssistant } = require('./lib/ai/support-assistant');
+const { modelFor } = require('./lib/ai/models');
 
 // Versions shipped with this build; read once at start-up.
 const EXPECTED_MIGRATIONS = listMigrations().map(m => m.version);
@@ -58,12 +64,15 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   const AI_ASSISTANT_PAGE = process.env.FEATURE_AI_ASSISTANT === 'true';
   const aiGateway = createGateway({ pool, logger });
   const mabhas17 = createMabhas17Assistant({ gateway: aiGateway });
+  const visualStore = createVisualStore({ pool, logger });
+  // Help centre AI («پشتیبان هوشمند»): on only when FEATURE_AI_SUPPORT=true and AI_API_KEY is set; FAQ search otherwise.
+  const supportAI = createSupportAssistant({ gateway: aiGateway, pool });
   // Cache-busting for CSS/JS: a short hash of their contents, appended as ?v= in the views. Static files
   // are cached by browsers for 7 days (and by the service worker), so without this a deploy could keep
   // showing old styles/scripts to returning visitors.
   const ASSET_VERSION = (() => {
     const h = crypto.createHash('sha1');
-    for (const f of ['css/styles.css', 'css/elevate.css', 'js/main.js', 'js/motion.js', 'js/tools.js', 'js/map.js', 'css/coverage-map.css', 'js/assistant.js', 'css/assistant.css', 'css/library.css']) {
+    for (const f of ['css/styles.css', 'css/elevate.css', 'js/main.js', 'js/motion.js', 'js/tools.js', 'js/map.js', 'css/coverage-map.css', 'js/assistant.js', 'css/assistant.css', 'css/library.css', 'css/banners.css', 'js/admin-visual.js', 'css/admin-visual.css', 'js/support.js', 'css/support.css']) {
       try { h.update(fs.readFileSync(path.join(ROOT, 'public', f))); } catch { /* optional file */ }
     }
     return h.digest('hex').slice(0, 10);
@@ -104,7 +113,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         mediaSrc: ["'self'", 'https:'],
         connectSrc: ["'self'"],
         fontSrc: ["'self'"],
@@ -282,6 +291,25 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
       res.locals.currentAdmin = admin;
       res.locals.can = permission => hasPermission(admin.role, permission);
       res.locals.roleHome = ROLE_HOME[admin.role];
+    }
+    next();
+  }));
+
+  // Banners and replaceable site images for every rendered page (cached snapshot, see lib/visual-store.js).
+  app.use(asyncRoute(async (req, res, next) => {
+    const snap = await visualStore.snapshot();
+    const locale = res.locals.locale;
+    const authenticated = !!req.user;
+    res.locals.bannersFor = slot => visual.liveBanners(snap.banners, slot, { authenticated, locale });
+    res.locals.siteImage = key => visualStore.siteImage(snap, key, locale);
+    res.locals.bannerOverlay = b => visual.overlayCss(b, res.locals.htmlDir || 'rtl');
+    res.locals.layerText = layer => visual.layerText(layer, locale);
+    // Unread support replies for the signed-in customer (badge on «پشتیبانی» in the header).
+    res.locals.supportUnread = 0;
+    if (req.user && (req.method === 'GET' || req.method === 'HEAD')) {
+      try {
+        res.locals.supportUnread = (await pool.query("SELECT COUNT(*)::int AS n FROM tickets WHERE user_id=$1 AND last_author='admin' AND status<>'closed' AND (user_seen_at IS NULL OR user_seen_at < updated_at)", [req.user.id])).rows[0].n;
+      } catch { /* pending migration: no badge */ }
     }
     next();
   }));
@@ -471,7 +499,8 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     if (!oldPath || oldPath === newPath || !/^\/media\/covers\/[A-Za-z0-9-]+\.(?:jpg|png|webp|gif)$/.test(oldPath)) return;
     const used = await pool.query(`SELECT (SELECT COUNT(*) FROM products WHERE cover_image=$1) + (SELECT COUNT(*) FROM articles WHERE cover_image=$1)
       + (SELECT COUNT(*) FROM article_images WHERE image_path=$1) + (SELECT COUNT(*) FROM product_gallery_images WHERE image_path=$1)
-      + (SELECT COUNT(*) FROM product_demo_steps WHERE image_path=$1) + (SELECT COUNT(*) FROM product_demo_step_images WHERE image_path=$1) AS n`, [oldPath]);
+      + (SELECT COUNT(*) FROM product_demo_steps WHERE image_path=$1) + (SELECT COUNT(*) FROM product_demo_step_images WHERE image_path=$1)
+      + (SELECT COUNT(*) FROM media_images WHERE path=$1) AS n`, [oldPath]);
     if (Number(used.rows[0].n) === 0) await fs.promises.rm(path.join(COVERS_DIR, path.basename(oldPath)), { force: true });
   }
   const intInRange = (value, min, max, fallback) => {
@@ -494,6 +523,17 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     res.redirect(safeLocalPath(req.query.next, '/'));
   });
 
+  // Items without their own cover show the admin-chosen default cover (slots *.coverFallback), when set.
+  // Display only: SEO/Open Graph keep using the item's real cover.
+  const withFallbackCovers = (res, rows, kind) => {
+    const pickSlot = row => (kind === 'article' ? 'article.coverFallback' : row.product_type === 'course' ? 'course.coverFallback' : 'plugin.coverFallback');
+    return rows.map(row => {
+      if (row.cover_image || !res.locals.siteImage) return row;
+      const img = res.locals.siteImage(pickSlot(row));
+      return img && img.custom ? { ...row, cover_image: img.src } : row;
+    });
+  };
+
   // ───────────── Public pages ─────────────
   app.get('/', asyncRoute(async (req, res) => {
     const [settings, products, articles] = await Promise.all([
@@ -501,13 +541,13 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
       pool.query("SELECT * FROM products WHERE status='published' ORDER BY featured DESC, created_at DESC LIMIT 3"),
       pool.query("SELECT * FROM articles WHERE status='published' ORDER BY published_at DESC NULLS LAST, created_at DESC LIMIT 3")
     ]);
-    res.render('home', { title: res.locals.t('seo.homeTitle'), fullTitle: true, metaDescription: res.locals.t('seo.homeDescription'), structuredData: [seo.website(APP_URL, res.locals.siteName, res.locals.locale)], settings, products: products.rows, articles: articles.rows });
+    res.render('home', { title: res.locals.t('seo.homeTitle'), fullTitle: true, metaDescription: res.locals.t('seo.homeDescription'), structuredData: [seo.website(APP_URL, res.locals.siteName, res.locals.locale)], settings, products: withFallbackCovers(res, products.rows, 'product'), articles: withFallbackCovers(res, articles.rows, 'article') });
   }));
   app.get('/shop', asyncRoute(async (req, res) => {
     const type = ['course', 'plugin'].includes(req.query.type) ? req.query.type : '';
     const { where, params, q } = buildWhere({ q: req.query.q, searchColumns: ['title', 'short_description', 'category'], filters: [['product_type', type]], base: ["status='published'"] });
     const products = await pool.query(`SELECT * FROM products ${where} ORDER BY featured DESC, created_at DESC`, params);
-    res.render('shop', { title: res.locals.t('seo.shopTitle'), metaDescription: res.locals.t('seo.shopDescription'), products: products.rows, type, q });
+    res.render('shop', { title: res.locals.t('seo.shopTitle'), metaDescription: res.locals.t('seo.shopDescription'), products: withFallbackCovers(res, products.rows, 'product'), type, q });
   }));
   app.get('/shop/:slug', asyncRoute(async (req, res) => {
     const p = await pool.query("SELECT * FROM products WHERE slug=$1 AND status='published'", [req.params.slug]);
@@ -534,7 +574,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   app.get('/articles', asyncRoute(async (req, res) => {
     const { where, params, q } = buildWhere({ q: req.query.q, searchColumns: ['title', 'excerpt', 'category'], base: ["status='published'"] });
     const articles = await pool.query(`SELECT * FROM articles ${where} ORDER BY published_at DESC NULLS LAST, created_at DESC`, params);
-    res.render('articles', { title: res.locals.t('seo.articlesTitle'), metaDescription: res.locals.t('seo.articlesDescription'), articles: articles.rows, q });
+    res.render('articles', { title: res.locals.t('seo.articlesTitle'), metaDescription: res.locals.t('seo.articlesDescription'), articles: withFallbackCovers(res, articles.rows, 'article'), q });
   }));
   app.get('/articles/:slug', asyncRoute(async (req, res) => {
     const r = await pool.query("SELECT * FROM articles WHERE slug=$1 AND status='published'", [req.params.slug]);
@@ -548,7 +588,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     res.render('article', { title: aTitle, metaDescription: aDesc || undefined, ogType: 'article', ogImage: aImage, englishAvailable: !!(article.title_en && article.content_en),
       structuredData: [seo.articleLd({ appUrl: APP_URL, canonical: res.locals.seo.canonical, article, title: aTitle, description: aDesc, image: aImage, locale: res.locals.locale }),
         seo.breadcrumbs([{ name: res.locals.t('tools.breadcrumbHome'), url: seo.localeUrl(APP_URL, '/', res.locals.locale) }, { name: res.locals.t('nav.articles'), url: seo.localeUrl(APP_URL, '/articles', res.locals.locale) }, { name: aTitle, url: res.locals.seo.canonical }])],
-      article, contentHtml: renderArticleBody(bodySource, images.rows) });
+      article: withFallbackCovers(res, [article], 'article')[0], contentHtml: renderArticleBody(bodySource, images.rows) });
   }));
   app.get('/about', asyncRoute(async (req, res) => {
     const [settings, team] = await Promise.all([getSettings(), pool.query('SELECT * FROM team_members WHERE is_active ORDER BY display_order,id')]);
@@ -614,7 +654,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   app.get('/robots.txt', (_req, res) => {
     res.type('text/plain').send([
       'User-agent: *',
-      'Disallow: /admin', 'Disallow: /account', 'Disallow: /auth/', 'Disallow: /checkout/', 'Disallow: /payments/', 'Disallow: /lang/',
+      'Disallow: /admin', 'Disallow: /account', 'Disallow: /auth/', 'Disallow: /checkout/', 'Disallow: /payments/', 'Disallow: /lang/', 'Disallow: /go/', 'Disallow: /api/',
       `Sitemap: ${APP_URL}/sitemap.xml`, ''
     ].join('\n'));
   });
@@ -629,7 +669,8 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     const lm = lastmod => (lastmod ? `<lastmod>${new Date(lastmod).toISOString().slice(0, 10)}</lastmod>` : '');
     const url = (loc, lastmod, en = true) => (en ? ['fa', 'en'] : ['fa']).map(l => `  <url><loc>${esc(seo.localeUrl(APP_URL, loc, l))}</loc>${lm(lastmod)}${alt(loc, en)}</url>`).join('\n');
     const lib = (await pool.query('SELECT MAX(updated_at) AS m FROM library_documents WHERE is_published').catch(() => ({ rows: [{}] }))).rows[0].m;
-    const pages = [['/'], ['/tools'], ['/shop'], ['/articles'], ['/library', lib], ['/about']];
+    const faqAt = (await pool.query('SELECT MAX(updated_at) AS m FROM support_faqs WHERE is_published').catch(() => ({ rows: [{}] }))).rows[0].m;
+    const pages = [['/'], ['/tools'], ['/shop'], ['/articles'], ['/library', lib], ['/support', faqAt], ['/about']];
     if (COVERAGE_MAP_ENABLED) pages.push(['/coverage-map']);
     const urls = pages.map(([p, m]) => url(p, m))
       .concat(products.rows.map(r => url(`/shop/${encodeURIComponent(r.slug)}`, r.updated_at, r.has_en)))
@@ -870,7 +911,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
       pool.query('SELECT * FROM orders WHERE user_id=$1 ORDER BY created_at DESC LIMIT 30', [req.user.id]),
       pool.query("SELECT p.*, MAX(o.paid_at) AS paid_at, COALESCE((SELECT json_agg(json_build_object('id',a.id,'title',a.title,'asset_kind',a.asset_kind) ORDER BY a.sort_order,a.id) FROM product_assets a WHERE a.product_id=p.id),'[]'::json) AS assets FROM products p JOIN order_items oi ON oi.product_id=p.id JOIN orders o ON o.id=oi.order_id WHERE o.user_id=$1 AND o.status='paid' GROUP BY p.id ORDER BY MAX(o.paid_at) DESC", [req.user.id])
     ]);
-    res.render('account', { title: res.locals.t('page.account'), orders: orders.rows, library: library.rows });
+    res.render('account', { title: res.locals.t('page.account'), orders: orders.rows, library: withFallbackCovers(res, library.rows, 'product') });
   }));
   app.post('/account/profile', requireAuth, asyncRoute(async (req, res) => {
     const firstName = normalizeText(req.body.firstName, 100);
@@ -880,50 +921,6 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     if (!firstName || !lastName) { setFlash(req, 'error', res.locals.t('flash.account.nameRequired')); return res.redirect('/account#profile'); }
     await pool.query('UPDATE users SET first_name=$1,last_name=$2,branch=$3,field=$4,updated_at=NOW() WHERE id=$5', [firstName, lastName, branch, field, req.user.id]);
     setFlash(req, 'success', res.locals.t('flash.account.profileUpdated')); res.redirect('/account#profile');
-  }));
-
-  // ───────────── Customer support tickets (no email notifications; in-app only) ─────────────
-  const TICKET_CATEGORIES = ['order', 'product', 'account', 'technical', 'other'];
-  const TICKET_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
-  const TICKET_STATUSES = ['open', 'pending', 'answered', 'closed'];
-  app.get('/account/tickets', requireAuth, asyncRoute(async (req, res) => {
-    const r = await pool.query('SELECT * FROM tickets WHERE user_id=$1 ORDER BY created_at DESC', [req.user.id]);
-    res.render('tickets', { title: res.locals.t('page.tickets'), tickets: r.rows });
-  }));
-  app.get('/account/tickets/new', requireAuth, (_req, res) => res.render('ticket-new', { title: res.locals.t('page.ticketNew') }));
-  app.post('/account/tickets', requireAuth, asyncRoute(async (req, res) => {
-    const subject = normalizeText(req.body.subject, 200);
-    const message = normalizeText(req.body.message, 4000);
-    const category = TICKET_CATEGORIES.includes(req.body.category) ? req.body.category : 'other';
-    const priority = TICKET_PRIORITIES.includes(req.body.priority) ? req.body.priority : 'normal';
-    if (!subject || !message) { setFlash(req, 'error', res.locals.t('flash.tickets.subjectMessageRequired')); return res.redirect('/account/tickets/new'); }
-    const client = await pool.connect();
-    let id;
-    try {
-      await client.query('BEGIN');
-      const created = await client.query('INSERT INTO tickets(user_id,subject,category,priority,status) VALUES($1,$2,$3,$4,\'open\') RETURNING id', [req.user.id, subject, category, priority]);
-      id = created.rows[0].id;
-      await client.query('INSERT INTO ticket_messages(ticket_id,author_type,author_id,body) VALUES($1,\'user\',$2,$3)', [id, req.user.id, message]);
-      await client.query('COMMIT');
-    } catch (error) { await client.query('ROLLBACK').catch(() => {}); throw error; } finally { client.release(); }
-    setFlash(req, 'success', res.locals.t('flash.tickets.created'));
-    res.redirect(`/account/tickets/${id}`);
-  }));
-  app.get('/account/tickets/:id', requireAuth, asyncRoute(async (req, res) => {
-    const t = await pool.query('SELECT * FROM tickets WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
-    if (!t.rowCount) return renderError(res, 404, 'پیدا نشد', 'این درخواست پیدا نشد.');
-    const messages = await pool.query('SELECT * FROM ticket_messages WHERE ticket_id=$1 ORDER BY created_at,id', [req.params.id]);
-    res.render('ticket', { title: t.rows[0].subject, ticket: t.rows[0], messages: messages.rows });
-  }));
-  app.post('/account/tickets/:id/reply', requireAuth, asyncRoute(async (req, res) => {
-    const t = await pool.query('SELECT * FROM tickets WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
-    if (!t.rowCount) return renderError(res, 404, 'پیدا نشد', 'این درخواست پیدا نشد.');
-    if (t.rows[0].status === 'closed') { setFlash(req, 'error', res.locals.t('flash.tickets.closedCannotReply')); return res.redirect(`/account/tickets/${req.params.id}`); }
-    const message = normalizeText(req.body.message, 4000);
-    if (!message) { setFlash(req, 'error', res.locals.t('flash.tickets.replyRequired')); return res.redirect(`/account/tickets/${req.params.id}`); }
-    await pool.query('INSERT INTO ticket_messages(ticket_id,author_type,author_id,body) VALUES($1,\'user\',$2,$3)', [req.params.id, req.user.id, message]);
-    await pool.query("UPDATE tickets SET status='pending',updated_at=NOW() WHERE id=$1", [req.params.id]);
-    res.redirect(`/account/tickets/${req.params.id}`);
   }));
 
   // ───────────── Orders and verified ZarinPal checkout ─────────────
@@ -1568,41 +1565,6 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     setFlash(req, 'success', 'تنظیمات سایت ذخیره شد.'); res.redirect('/admin/settings');
   }));
 
-  // ───────────── Admin: support tickets ─────────────
-  app.get('/admin/tickets', requireAdmin, asyncRoute(async (req, res) => {
-    const status = TICKET_STATUSES.includes(req.query.status) ? req.query.status : '';
-    const priority = TICKET_PRIORITIES.includes(req.query.priority) ? req.query.priority : '';
-    const { where, params, q } = buildWhere({ q: req.query.q, searchColumns: ['tk.subject'], filters: [['tk.status', status], ['tk.priority', priority]] });
-    const total = (await pool.query(`SELECT COUNT(*)::int AS n FROM tickets tk ${where}`, params)).rows[0].n;
-    const pg = pagination(parsePage(req.query.page), 30, total);
-    const r = await pool.query(`SELECT tk.*,u.phone,u.first_name,u.last_name FROM tickets tk JOIN users u ON u.id=tk.user_id ${where} ORDER BY tk.updated_at DESC,tk.id DESC LIMIT ${pg.pageSize} OFFSET ${pg.offset}`, params);
-    res.render('admin/tickets', { title: 'تیکت‌های پشتیبانی', tickets: r.rows, filters: { q, status, priority }, pg });
-  }));
-  app.get('/admin/tickets/:id', requireAdmin, asyncRoute(async (req, res) => {
-    const t = await pool.query('SELECT tk.*,u.phone,u.first_name,u.last_name FROM tickets tk JOIN users u ON u.id=tk.user_id WHERE tk.id=$1', [req.params.id]);
-    if (!t.rowCount) return renderError(res, 404, 'پیدا نشد', 'این تیکت پیدا نشد.');
-    const messages = await pool.query('SELECT * FROM ticket_messages WHERE ticket_id=$1 ORDER BY created_at,id', [req.params.id]);
-    res.render('admin/ticket-detail', { title: t.rows[0].subject, ticket: t.rows[0], messages: messages.rows });
-  }));
-  app.post('/admin/tickets/:id/reply', requireAdmin, asyncRoute(async (req, res) => {
-    const t = await pool.query('SELECT id,status FROM tickets WHERE id=$1', [req.params.id]);
-    if (!t.rowCount) return renderError(res, 404, 'پیدا نشد', 'این تیکت پیدا نشد.');
-    const message = normalizeText(req.body.message, 4000);
-    if (!message) { setFlash(req, 'error', 'متن پاسخ الزامی است.'); return res.redirect(`/admin/tickets/${req.params.id}`); }
-    await pool.query('INSERT INTO ticket_messages(ticket_id,author_type,author_id,body) VALUES($1,\'admin\',$2,$3)', [req.params.id, req.admin.id, message]);
-    await pool.query("UPDATE tickets SET status='answered',updated_at=NOW() WHERE id=$1", [req.params.id]);
-    setFlash(req, 'success', 'پاسخ شما ثبت شد.');
-    res.redirect(`/admin/tickets/${req.params.id}`);
-  }));
-  app.post('/admin/tickets/:id/status', requireAdmin, asyncRoute(async (req, res) => {
-    const status = TICKET_STATUSES.includes(req.body.status) ? req.body.status : null;
-    const priority = TICKET_PRIORITIES.includes(req.body.priority) ? req.body.priority : null;
-    if (!status || !priority) { setFlash(req, 'error', 'مقدار واردشده معتبر نیست.'); return res.redirect(`/admin/tickets/${req.params.id}`); }
-    const r = await pool.query('UPDATE tickets SET status=$1,priority=$2,updated_at=NOW() WHERE id=$3 RETURNING id', [status, priority, req.params.id]);
-    setFlash(req, r.rowCount ? 'success' : 'error', r.rowCount ? 'وضعیت تیکت به‌روزرسانی شد.' : 'این تیکت پیدا نشد.');
-    res.redirect(`/admin/tickets/${req.params.id}`);
-  }));
-
   // ───────────── Admin: "About us" team members ─────────────
   app.get('/admin/team', requireAdmin, asyncRoute(async (req, res) => {
     const r = await pool.query('SELECT * FROM team_members ORDER BY display_order,id');
@@ -1762,11 +1724,16 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     res.redirect('/admin/library');
   }));
 
+  registerSupportRoutes(app, { pool, gateway: aiGateway, supportAI, requireAuth, requireAdmin, asyncRoute, setFlash, renderError, normalizeText, multipartCsrf, verifyUploads, removeUploaded,
+    PRIVATE_DIR, buildWhere, parsePage, pagination, logger, aiAssistantPage: AI_ASSISTANT_PAGE,
+    supportModels: { chat: modelFor('supportChat').model, triage: modelFor('supportTriage').model, draft: modelFor('supportDraft').model } });
+  registerVisualRoutes(app, { pool, store: visualStore, requireAdmin, asyncRoute, setFlash, renderError, coverStorage, imageFilter, multipartCsrf, verifyUploads, imagePolicy, removeUploaded, COVERS_DIR });
+
   app.use((req, res) => renderError(res, 404, res.locals.t('errorPage.notFoundTitle'), res.locals.t('errorPage.notFoundMessage')));
   app.use((err, req, res, _next) => {
     removeUploaded(req);
     if (err instanceof multer.MulterError) {
-      const imageField = ['cover', 'inline_images', 'image', 'images'].includes(err.field);
+      const imageField = ['cover', 'inline_images', 'image', 'images', 'desktop_file', 'mobile_file', 'file', 'files', 'attachment'].includes(err.field);
       const limit = imageField ? 8 : MAX_UPLOAD_MB;
       const tooMany = err.code === 'LIMIT_FILE_COUNT' || err.code === 'LIMIT_UNEXPECTED_FILE';
       const message = err.code === 'LIMIT_FILE_SIZE' ? `حجم فایل بیشتر از حد مجاز (${limit} مگابایت) است.`

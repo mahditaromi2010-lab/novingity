@@ -15,7 +15,8 @@
   const pageTitle = locals.fullTitle && title ? title : (title ? `${title} | ${siteName}` : `${siteName} | ${t('meta.defaultTitleSuffix')}`);
   const s = locals.seo;
   const isError = locals.httpStatus && locals.httpStatus() >= 400;
-  const ogImageUrl = locals.ogImage || `${locals.appUrl}/public/images/og-default.png`;
+  const ogDefault = locals.siteImage ? siteImage('seo.ogDefault') : null;
+  const ogImageUrl = locals.ogImage || `${locals.appUrl}${ogDefault && ogDefault.custom ? ogDefault.src : '/public/images/og-default.png'}`;
 %>
   <meta name="description" content="<%= pageDescription %>">
   <title><%= pageTitle %></title>
@@ -34,7 +35,7 @@
   <meta property="og:description" content="<%= pageDescription %>">
   <meta property="og:url" content="<%= s.canonical %>">
   <meta property="og:image" content="<%= ogImageUrl %>">
-  <% if (!locals.ogImage) { %><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><% } %>
+  <% if (!locals.ogImage && !(ogDefault && ogDefault.custom)) { %><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><% } else if (!locals.ogImage && ogDefault.width) { %><meta property="og:image:width" content="<%= ogDefault.width %>"><meta property="og:image:height" content="<%= ogDefault.height %>"><% } %>
   <meta property="og:locale" content="<%= s.ogLocale %>">
   <meta property="og:locale:alternate" content="<%= s.ogLocaleAlternate %>">
   <meta name="twitter:card" content="summary_large_image">
@@ -43,6 +44,7 @@
   <link rel="preload" href="/public/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/public/css/styles.css?v=<%= locals.assetVersion || '0' %>">
   <link rel="stylesheet" href="/public/css/elevate.css?v=<%= locals.assetVersion || '0' %>">
+  <link rel="stylesheet" href="/public/css/banners.css?v=<%= locals.assetVersion || '0' %>">
   <%# Scroll-reveal content starts hidden and is shown by motion.js; without JavaScript it must simply be visible. %>
   <noscript><style>.reveal-on-scroll,.reveal-stagger .reveal-item{opacity:1!important;transform:none!important}</style></noscript>
   <script defer src="/public/js/main.js?v=<%= locals.assetVersion || '0' %>"></script>
@@ -50,9 +52,10 @@
 </head>
 <body class="<%= String(locals.currentPath || '').startsWith('/admin') ? 'is-admin' : 'is-public' %>">
 <a class="skip-link" href="#main-content"><%= t('a11y.skipToContent') %></a>
+<%- include('announcement-bar') %>
 <header class="site-header">
   <div class="container nav-shell">
-    <a class="brand" href="/" aria-label="<%= siteName %> - <%= t('a11y.homeLink') %>"><span class="brand-mark"><img src="/public/images/nogiti-logo-96.webp" srcset="/public/images/nogiti-logo-96.webp 2x, /public/images/nogiti-logo-144.webp 3x" alt="" width="48" height="48" decoding="async"></span><span><strong><%= siteName %></strong><small><%= siteTagline %></small></span></a>
+    <a class="brand" href="/" aria-label="<%= siteName %> - <%= t('a11y.homeLink') %>"><span class="brand-mark"><%- include('brand-logo') %></span><span><strong><%= siteName %></strong><small><%= siteTagline %></small></span></a>
     <button class="mobile-toggle" type="button" aria-label="<%= t('a11y.openMenu') %>" aria-controls="main-nav" aria-expanded="false" data-menu-toggle><span></span><span></span><span></span></button>
     <nav class="main-nav" id="main-nav" aria-label="<%= t('a11y.mainMenu') %>" data-nav>
       <a href="/tools"><%= t('nav.tools') %></a>
@@ -62,7 +65,7 @@
       <a href="/library"><%= t('nav.library') %></a>
 <% if (coverageMapEnabled) { %>      <a href="/coverage-map"><%= t('nav.coverageMap') %></a>
 <% } %>      <a href="/about"><%= t('nav.about') %></a>
-      <% if (currentUser) { %><a href="/account/tickets"><%= t('nav.support') %></a><% } %>
+      <a href="/support"><%= t('nav.support') %><% if (locals.supportUnread) { %> <span class="nav-badge" aria-label="<%= t('support.newReplies') %>"><%= supportUnread %></span><% } %></a>
       <% if (currentAdmin) { %><a href="<%= can('overview') ? '/admin' : (roleHome || '/admin/account') %>" class="nav-admin"><%= t('nav.admin') %></a><% } %>
     </nav>
     <div class="nav-actions">

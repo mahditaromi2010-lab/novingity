@@ -1,14 +1,30 @@
 <%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
-<div class="admin-topbar"><div><span class="section-kicker">CUSTOMER SUPPORT</span><h1><%= t('admin.tickets.title') %></h1><p><%= t('admin.tickets.subtitle') %></p></div></div>
+<link rel="stylesheet" href="/public/css/support.css?v=<%= locals.assetVersion || '0' %>">
+<% const df = d => new Date(d).toLocaleString(locale === 'en' ? 'en-GB' : 'fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'short', timeStyle: 'short' }); %>
+<div class="admin-topbar"><div><span class="section-kicker">CUSTOMER SUPPORT</span><h1><%= t('admin.tickets.title') %></h1><p><%= t('admin.tickets.subtitle') %></p></div>
+  <div class="topbar-actions"><a href="/admin/support/faqs" class="button button-outline button-small"><%= t('adminSupport.title') %></a></div></div>
+<div class="sp-admin-stats">
+  <a href="/admin/tickets?status=needs-reply" class="sp-stat<%= filters.status === 'needs-reply' ? ' is-on' : '' %>"><b><%= counts.needs %></b><span><%= t('admin.tickets.needsReply') %></span></a>
+  <a href="/admin/tickets?status=needs-reply&priority=urgent" class="sp-stat sp-stat-urgent"><b><%= counts.urgent %></b><span><%= t('admin.tickets.urgentOpen') %></span></a>
+</div>
 <section class="admin-panel">
   <form class="filter-bar" method="get" action="/admin/tickets" role="search">
-    <div class="filter-field filter-grow"><label for="f-q"><%= t('common.search') %></label><input class="form-control" id="f-q" name="q" type="search" value="<%= filters.q %>" placeholder="موضوع تیکت" maxlength="100"></div>
-    <div class="filter-field"><label for="f-status"><%= t('common.status') %></label><select class="form-control" id="f-status" name="status"><option value=""><%= t('common.all') %></option><% ['open','pending','answered','closed'].forEach(s => { %><option value="<%= s %>" <%= filters.status===s?'selected':'' %>><%= t('tickets.status.'+s) %></option><% }) %></select></div>
+    <div class="filter-field filter-grow"><label for="f-q"><%= t('common.search') %></label><input class="form-control" id="f-q" name="q" type="search" value="<%= filters.q %>" placeholder="<%= t('admin.tickets.searchPh') %>" maxlength="100"></div>
+    <div class="filter-field"><label for="f-status"><%= t('common.status') %></label><select class="form-control" id="f-status" name="status"><option value=""><%= t('common.all') %></option><option value="needs-reply" <%= filters.status==='needs-reply'?'selected':'' %>><%= t('admin.tickets.needsReply') %></option><% ['open','pending','answered','closed'].forEach(s => { %><option value="<%= s %>" <%= filters.status===s?'selected':'' %>><%= t('tickets.status.'+s) %></option><% }) %></select></div>
     <div class="filter-field"><label for="f-priority"><%= t('common.priority') %></label><select class="form-control" id="f-priority" name="priority"><option value=""><%= t('common.all') %></option><% ['low','normal','high','urgent'].forEach(p => { %><option value="<%= p %>" <%= filters.priority===p?'selected':'' %>><%= t('tickets.priority.'+p) %></option><% }) %></select></div>
     <div class="filter-actions"><button class="button button-dark button-small" type="submit"><%= t('common.filter') %></button><% if (filters.q || filters.status || filters.priority) { %><a class="button button-quiet button-small" href="/admin/tickets"><%= t('common.clearFilters') %></a><% } %></div>
   </form>
-  <div class="table-responsive"><table class="data-table"><caption class="sr-only"><%= t('admin.tickets.title') %></caption><thead><tr><th scope="col">#</th><th scope="col"><%= t('tickets.subject') %></th><th scope="col">کاربر</th><th scope="col"><%= t('common.category') %></th><th scope="col"><%= t('common.priority') %></th><th scope="col"><%= t('common.status') %></th><th scope="col"><%= t('common.date') %></th></tr></thead><tbody>
-  <% tickets.forEach(tk => { %><tr><td><a href="/admin/tickets/<%= tk.id %>">#<%= tk.id %></a></td><td><a href="/admin/tickets/<%= tk.id %>"><%= tk.subject %></a></td><td><%= (tk.first_name+' '+tk.last_name).trim() || tk.phone %><small class="table-sub" dir="ltr"><%= tk.phone %></small></td><td><%= t('tickets.category.'+tk.category) %></td><td><%= t('tickets.priority.'+tk.priority) %></td><td><span class="status-pill status-ticket-<%= tk.status %>"><%= t('tickets.status.'+tk.status) %></span></td><td><%= new Date(tk.created_at).toLocaleDateString('fa-IR') %></td></tr><% }) %>
+  <div class="table-responsive"><table class="data-table"><caption class="sr-only"><%= t('admin.tickets.title') %></caption><thead><tr><th scope="col">#</th><th scope="col"><%= t('tickets.subject') %></th><th scope="col"><%= t('admin.tickets.customer') %></th><th scope="col"><%= t('common.category') %></th><th scope="col"><%= t('common.priority') %></th><th scope="col"><%= t('common.status') %></th><th scope="col"><%= t('admin.tickets.lastActivity') %></th></tr></thead><tbody>
+  <% tickets.forEach(tk => { %><tr class="<%= tk.unread ? 'sp-row-unread' : '' %>">
+    <td><a href="/admin/tickets/<%= tk.id %>">#<%= tk.id %></a></td>
+    <td><a href="/admin/tickets/<%= tk.id %>"><% if (tk.unread) { %><span class="sp-dot" title="<%= t('admin.tickets.unread') %>"></span><span class="sr-only"><%= t('admin.tickets.unread') %>: </span><% } %><%= tk.subject %></a>
+      <% if (tk.ai_summary) { %><small class="table-sub"><%= tk.ai_summary %></small><% } %>
+      <% if (tk.files) { %><small class="table-sub">📎 <%= tk.files %></small><% } %><% if (tk.source === 'assistant') { %><small class="table-sub"><%= t('admin.tickets.fromAssistant') %></small><% } %></td>
+    <td><%= (tk.first_name+' '+tk.last_name).trim() || tk.phone %><small class="table-sub" dir="ltr"><%= tk.phone %></small></td>
+    <td><%= t('tickets.category.'+tk.category) %><% if (tk.ai_category && tk.ai_category !== tk.category) { %><small class="table-sub sp-suggested"><%= t('admin.tickets.suggested') %>: <%= t('tickets.category.'+tk.ai_category) %></small><% } %></td>
+    <td><span class="sp-pri sp-pri-<%= tk.priority %>"><%= t('tickets.priority.'+tk.priority) %></span><% if (tk.ai_priority && tk.ai_priority !== tk.priority) { %><small class="table-sub sp-suggested"><%= t('admin.tickets.suggested') %>: <%= t('tickets.priority.'+tk.ai_priority) %></small><% } %></td>
+    <td><span class="status-pill status-ticket-<%= tk.status %>"><%= t('tickets.status.'+tk.status) %></span></td>
+    <td><small><%= df(tk.updated_at) %></small></td></tr><% }) %>
   <% if (!tickets.length) { %><tr><td colspan="7" class="table-empty"><%= t('admin.tickets.noneYet') %></td></tr><% } %>
   </tbody></table></div>
   <%- include('../partials/pagination', { pg, base: '/admin/tickets', params: filters }) %>

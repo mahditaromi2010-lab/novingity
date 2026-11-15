@@ -1,0 +1,6 @@
+<link rel="stylesheet" href="/public/css/admin-visual.css?v=<%= locals.assetVersion || '0' %>">
+<nav class="av-tabs" aria-label="<%= t('adminNav.visual') %>">
+  <% [['banners', '/admin/visual/banners'], ['images', '/admin/visual/images'], ['media', '/admin/visual/media']].forEach(([k, href]) => { const on = currentPath.startsWith(href); %>
+    <a href="<%= href %>" class="av-tab<%= on ? ' is-active' : '' %>"<% if (on) { %> aria-current="page"<% } %>><%= t('adminVisual.tab.' + k) %></a>
+  <% }) %>
+</nav>

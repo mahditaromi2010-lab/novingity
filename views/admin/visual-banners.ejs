@@ -1,0 +1,48 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<%
+  const nf = n => Number(n || 0).toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR');
+  const slotLabel = key => { const s = slots.find(x => x.key === key); return s ? (locale === 'en' ? s.en : s.fa) : key; };
+  const when = d => d ? new Date(d).toLocaleString(locale === 'en' ? 'en-GB' : 'fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'medium', timeStyle: 'short' }) : '';
+  const pill = { live: 'status-published', scheduled: 'status-pending', expired: 'status-cancelled', draft: 'status-draft', archived: 'status-archived' };
+  const firstText = b => { const l = (b.layers || []).find(x => x.kind === 'title') || (b.layers || []).find(x => x.kind !== 'button'); return l ? (l.text || l.text_en) : ''; };
+%>
+<div class="admin-topbar"><div><span class="section-kicker">VISUAL</span><h1><%= t('adminVisual.title') %></h1><p><%= t('adminVisual.subtitle') %></p></div>
+  <div class="topbar-actions"><a href="/admin/visual/banners/new<%= slot ? '?slot=' + encodeURIComponent(slot) : '' %>" class="button button-primary button-small">＋ <%= t('adminVisual.newBanner') %></a></div></div>
+<%- include('visual-tabs') %>
+
+<section class="admin-panel">
+  <form class="av-filter" method="get" action="/admin/visual/banners">
+    <label for="slotFilter"><%= t('adminVisual.fSlot') %></label>
+    <select class="form-control" id="slotFilter" name="slot" data-autosubmit>
+      <option value=""><%= t('adminVisual.allSlots') %></option>
+      <% slots.forEach(s => { %><option value="<%= s.key %>" <%= slot === s.key ? 'selected' : '' %>><%= locale === 'en' ? s.en : s.fa %></option><% }) %>
+    </select>
+    <noscript><button class="button button-outline button-small" type="submit"><%= t('adminVisual.filter') %></button></noscript>
+  </form>
+
+  <% if (!banners.length) { %>
+    <div class="empty-state av-empty"><span aria-hidden="true">◩</span><h3><%= t('adminVisual.emptyTitle') %></h3><p><%= t('adminVisual.emptyText') %></p>
+      <a class="button button-primary" href="/admin/visual/banners/new?slot=<%= encodeURIComponent(slot || 'shop.top') %>"><%= t('adminVisual.emptyCta') %></a></div>
+  <% } else { %>
+  <div class="table-responsive"><table class="data-table av-table"><caption class="sr-only"><%= t('adminVisual.bannersTitle') %></caption>
+    <thead><tr><th scope="col"><span class="sr-only"><%= t('adminVisual.colPreview') %></span></th><th scope="col"><%= t('adminVisual.colName') %></th><th scope="col"><%= t('adminVisual.fSlot') %></th><th scope="col"><%= t('adminVisual.colState') %></th><th scope="col"><%= t('adminVisual.colWhen') %></th><th scope="col"><%= t('adminVisual.colClicks') %></th><th scope="col"><span class="sr-only"><%= t('common.edit') %></span></th></tr></thead>
+    <tbody>
+    <% banners.forEach(b => { %><tr>
+      <td><a class="av-thumb" href="/admin/visual/banners/<%= b.id %>/edit" style="--nv-bg:<%= b.bg_color %>" tabindex="-1" aria-hidden="true"><% if (b.desktop_path) { %><img src="<%= b.desktop_path %>" alt="" loading="lazy" width="96" height="54"><% } else { %><span style="color:<%= b.text_color %>"><%= (firstText(b) || '').slice(0, 18) %></span><% } %></a></td>
+      <td><a href="/admin/visual/banners/<%= b.id %>/edit"><b><%= b.name %></b></a><% if (firstText(b)) { %><small class="table-sub"><%= firstText(b).slice(0, 70) %></small><% } %><small class="table-sub"><%= t('adminVisual.priority') %>: <%= nf(b.priority) %> · <%= t('adminVisual.aud.' + b.audience) %></small></td>
+      <td><%= slotLabel(b.slot) %></td>
+      <td><span class="status-pill <%= pill[b.state] %>"><%= t('adminVisual.state.' + b.state) %></span></td>
+      <td><small><% if (b.starts_at) { %><%= t('adminVisual.from') %> <%= when(b.starts_at) %><br><% } %><% if (b.ends_at) { %><%= t('adminVisual.until') %> <%= when(b.ends_at) %><% } %><% if (!b.starts_at && !b.ends_at) { %><%= t('adminVisual.always') %><% } %></small></td>
+      <td><%= nf(b.clicks) %></td>
+      <td><div class="row-actions">
+        <a href="/admin/visual/banners/<%= b.id %>/edit"><%= t('common.edit') %></a>
+        <form action="/admin/visual/banners/<%= b.id %>/status" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="status" value="<%= b.status === 'published' ? 'draft' : 'published' %>"><button type="submit" class="button-link"><%= b.status === 'published' ? t('adminVisual.unpublish') : t('adminVisual.publish') %></button></form>
+        <form action="/admin/visual/banners/<%= b.id %>/duplicate" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button-link"><%= t('adminVisual.duplicate') %></button></form>
+        <form action="/admin/visual/banners/<%= b.id %>/delete" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button-link danger-text" data-confirm="<%= t('adminVisual.deleteConfirm') %>" data-confirm-label="<%= t('common.delete') %>"><%= t('common.delete') %></button></form>
+      </div></td>
+    </tr><% }) %>
+    </tbody></table></div>
+  <% } %>
+</section>
+<p class="av-note"><%= t('adminVisual.listNote') %></p>
+</div></div><script defer src="/public/js/admin-visual.js?v=<%= locals.assetVersion || '0' %>"></script><%- include('../partials/footer') %>

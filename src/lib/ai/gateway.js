@@ -5,8 +5,10 @@
  * - The key lives only in the server environment (AI_API_KEY). It is never sent to the browser, logged or
  *   stored; errors are re-thrown without request headers.
  * - Every call has a timeout and at most one retry (network errors / 429 / 5xx).
- * - Kill switch: FEATURE_AI_ASSISTANT must be "true" and AI_API_KEY set, otherwise `enabled()` is false and
- *   callers use their non-AI fallback.
+ * - Feature flags and kill switch: a feature uses the model only when AI_API_KEY is set, AI_KILL_SWITCH is not
+ *   "true", and its own flag is "true" — FEATURE_AI_ASSISTANT for «دستیار مبحث ۱۷» (features "mabhas17-*"),
+ *   FEATURE_AI_SUPPORT for the help centre and tickets (features "support-*"). Otherwise `enabled(feature)` is
+ *   false and callers use their non-AI fallback.
  * - Budget guard: a daily request ceiling (AI_DAILY_REQUEST_LIMIT) and token ceiling (AI_DAILY_TOKEN_LIMIT),
  *   counted in PostgreSQL (ai_usage) so all processes share it. When reached, callers fall back.
  * Models are chosen per feature in src/lib/ai/models.js from evals (docs/ai/mabhas17-model-evals.md).
@@ -17,9 +19,15 @@ class AiUnavailableError extends Error {
   constructor(reason, detail) { super(`AI unavailable: ${reason}`); this.name = 'AiUnavailableError'; this.reason = reason; this.detail = detail; }
 }
 
-function aiConfig(env = process.env) {
+/** Which env flag switches a feature on. */
+function featureFlag(feature, env = process.env) {
+  if (String(feature || '').startsWith('support')) return env.FEATURE_AI_SUPPORT === 'true';
+  return env.FEATURE_AI_ASSISTANT === 'true';
+}
+
+function aiConfig(env = process.env, feature = 'mabhas17') {
   return {
-    enabled: env.FEATURE_AI_ASSISTANT === 'true' && !!String(env.AI_API_KEY || '').trim(),
+    enabled: env.AI_KILL_SWITCH !== 'true' && featureFlag(feature, env) && !!String(env.AI_API_KEY || '').trim(),
     baseUrl: String(env.AI_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, ''),
     key: String(env.AI_API_KEY || '').trim(),
     dailyRequestLimit: positiveInt(env.AI_DAILY_REQUEST_LIMIT, 500),
@@ -29,7 +37,7 @@ function aiConfig(env = process.env) {
 function positiveInt(v, d) { const n = Number(v); return Number.isInteger(n) && n > 0 ? n : d; }
 
 function createGateway({ pool, env = process.env, fetchImpl = globalThis.fetch, logger = null } = {}) {
-  const cfg = () => aiConfig(env);
+  const cfg = (feature = 'mabhas17') => aiConfig(env, feature);
 
   async function usageToday(feature) {
     if (!pool) return { requests: 0, tokens: 0 };
@@ -49,8 +57,8 @@ function createGateway({ pool, env = process.env, fetchImpl = globalThis.fetch, 
     } catch (err) { logger?.warn?.('ai usage not recorded', { error: err.message }); }
   }
 
-  async function assertBudget() {
-    const c = cfg();
+  async function assertBudget(feature) {
+    const c = cfg(feature);
     if (!c.enabled) throw new AiUnavailableError('disabled');
     let u;
     try { u = await usageToday(null); } catch (err) {
@@ -83,11 +91,12 @@ function createGateway({ pool, env = process.env, fetchImpl = globalThis.fetch, 
   }
 
   /** Chat completion. Returns { text, model, usage }. Throws AiUnavailableError. */
-  async function chat({ feature, model, messages, maxTokens = 1200, temperature = 0.2, timeoutMs = 45000, reasoningEffort }) {
-    await assertBudget();
+  async function chat({ feature, model, messages, maxTokens = 1200, temperature = 0.2, timeoutMs = 45000, reasoningEffort, json = false }) {
+    await assertBudget(feature);
     const started = Date.now();
     const body = { model, messages, max_tokens: maxTokens, temperature };
     if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+    if (json) body.response_format = { type: 'json_object' };
     let d;
     try { d = await post('/chat/completions', body, timeoutMs); } catch (err) { await record(feature, model, { fallback: true }); throw err; }
     const text = d?.choices?.[0]?.message?.content;
@@ -99,7 +108,7 @@ function createGateway({ pool, env = process.env, fetchImpl = globalThis.fetch, 
 
   /** Embeddings for one or more texts. Returns Float32Array[]. */
   async function embed({ feature = 'embeddings', model, input, dimensions, timeoutMs = 20000 }) {
-    await assertBudget();
+    await assertBudget(feature);
     const started = Date.now();
     const body = { model, input };
     if (dimensions) body.dimensions = dimensions;
@@ -111,7 +120,7 @@ function createGateway({ pool, env = process.env, fetchImpl = globalThis.fetch, 
     return vectors;
   }
 
-  return { enabled: () => cfg().enabled, chat, embed, usageToday, record, config: () => { const { key, ...rest } = cfg(); return { ...rest, keyConfigured: !!key }; } };
+  return { enabled: (feature = 'mabhas17') => cfg(feature).enabled, chat, embed, usageToday, record, config: (feature = 'mabhas17') => { const { key, ...rest } = cfg(feature); return { ...rest, keyConfigured: !!key }; } };
 }
 
-module.exports = { createGateway, aiConfig, AiUnavailableError, DEFAULT_BASE_URL };
+module.exports = { createGateway, aiConfig, featureFlag, AiUnavailableError, DEFAULT_BASE_URL };

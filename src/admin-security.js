@@ -25,12 +25,12 @@ function permissionForPath(pathname) {
   const section = path[0] || 'overview';
   if (section === 'admins') return 'admins';
   if (section === 'account' || section === 'logout') return 'self';
-  if (section === 'products' || section === 'articles' || section === 'article-images' || section === 'assets' || section === 'team' || section === 'gallery' || section === 'demo-steps' || section === 'library') return 'content';
+  if (section === 'products' || section === 'articles' || section === 'article-images' || section === 'assets' || section === 'team' || section === 'gallery' || section === 'demo-steps' || section === 'library' || section === 'visual') return 'content';
   if (section === 'orders') return 'orders';
   if (section === 'users') return 'users';
   if (section === 'settings') return 'settings';
   if (section === 'audit') return 'audit';
-  if (section === 'tickets') return 'support';
+  if (section === 'tickets' || section === 'support') return 'support';
   if (section === 'coverage-areas') return 'coverage';
   if (section === 'consultation-requests') return 'consultation';
   return 'overview';

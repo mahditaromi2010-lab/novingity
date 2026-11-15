@@ -32,7 +32,7 @@ test('support ticket flow: user creates a ticket, it appears in the admin list, 
   await t.test('a customer without access cannot see other users tickets, and ticket creation requires fields', async () => {
     const token = await user.csrf('/account/tickets/new');
     const empty = await user.post('/account/tickets', { _csrf: token, subject: '', category: 'other', priority: 'normal', message: '' });
-    assert.equal(empty.status, 302);
+    assert.equal(empty.status, 422, 'the form is shown again with what was typed');
     assert.equal((await pool.query('SELECT COUNT(*)::int n FROM tickets')).rows[0].n, 0, 'empty submission created no ticket');
   });
 

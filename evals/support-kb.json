@@ -1,0 +1,93 @@
+{
+  "_note": "Eval fixture: the starter FAQ from migration 0015 plus two made-up products used only by scripts/ai/eval-support.js.",
+  "faqs": [
+    {
+      "id": 1,
+      "question": "چطور وارد سایت شوم یا حساب بسازم؟",
+      "question_en": "How do I sign in or create an account?",
+      "answer": "روی «ورود» بزنید و شمارهٔ موبایل خود را وارد کنید. یک کد پیامکی برایتان فرستاده می‌شود؛ با وارد کردن آن وارد می‌شوید. حساب جداگانه یا رمز عبور لازم نیست و اولین ورود، حساب شما را می‌سازد.",
+      "answer_en": "Choose “Sign in” and enter your mobile number. You will get a text message with a code; enter it to sign in. There is no separate sign-up or password: your first sign-in creates the account.",
+      "category": "account"
+    },
+    {
+      "id": 2,
+      "question": "دوره‌ها و فایل‌هایی که خریده‌ام کجا هستند؟",
+      "question_en": "Where are the courses and files I bought?",
+      "answer": "بعد از ورود، به «حساب کاربری» بروید. در بخش «کتابخانهٔ من» همهٔ دوره‌ها و افزونه‌های خریداری‌شده یا رایگان با ویدیوها و فایل‌هایشان دیده می‌شوند.",
+      "answer_en": "After signing in, open “My account”. The “My library” section lists every course and plugin you bought or added for free, with its videos and files.",
+      "category": "order"
+    },
+    {
+      "id": 3,
+      "question": "پرداخت چطور انجام می‌شود؟",
+      "question_en": "How do I pay?",
+      "answer": "پرداخت از طریق درگاه امن زرین‌پال انجام می‌شود. دسترسی به محصول فقط بعد از تأیید پرداخت توسط درگاه فعال می‌شود. اگر مبلغ کم شد ولی محصول در کتابخانه‌تان نیامد، با شمارهٔ سفارش یک تیکت ثبت کنید.",
+      "answer_en": "Payment goes through the secure ZarinPal gateway. Access starts only after the gateway confirms the payment. If you were charged but the product is not in your library, open a ticket with your order number.",
+      "category": "order"
+    },
+    {
+      "id": 4,
+      "question": "محصولات رایگان را چطور دریافت کنم؟",
+      "question_en": "How do I get free products?",
+      "answer": "در صفحهٔ محصول رایگان، بعد از ورود به حساب، با یک کلیک به کتابخانهٔ شما اضافه می‌شود و نیازی به پرداخت نیست.",
+      "answer_en": "On a free product's page, after signing in, one click adds it to your library. No payment is needed.",
+      "category": "product"
+    },
+    {
+      "id": 5,
+      "question": "پاسخ تیکت را کجا ببینم؟",
+      "question_en": "Where do I see the reply to my ticket?",
+      "answer": "پاسخ‌ها فقط داخل سایت نمایش داده می‌شوند (پیامک یا ایمیل فرستاده نمی‌شود). از «پشتیبانی» یا «حساب کاربری ← تیکت‌های پشتیبانی» تیکت خود را باز کنید؛ تیکت‌هایی که پاسخ جدید دارند علامت‌گذاری می‌شوند.",
+      "answer_en": "Replies are shown only on the site (no text message or e-mail is sent). Open your ticket from “Support” or “My account → Support tickets”; tickets with a new reply are marked.",
+      "category": "general"
+    },
+    {
+      "id": 6,
+      "question": "ماشین‌حساب‌های مهندسی چقدر قابل اعتمادند؟",
+      "question_en": "How reliable are the engineering calculators?",
+      "answer": "ابزارها بر پایهٔ جداول مبحث ۱۷ مقررات ملی ساختمان ساخته شده‌اند، اما جایگزین طراحی مهندسی نیستند. پیش از اجرا، نتیجه را با بازرس یا شخص مسئول هماهنگ یا بررسی کنید.",
+      "answer_en": "The tools are built on the tables of Part 17 of the National Building Regulations, but they do not replace engineering design. Before acting on a result, check it with the inspector or the responsible person.",
+      "category": "technical"
+    },
+    {
+      "id": 7,
+      "question": "مبحث ۱۷ و مقررات دیگر را از کجا دانلود کنم؟",
+      "question_en": "Where can I download Part 17 and other regulations?",
+      "answer": "در «کتابخانهٔ فنی» مباحث مقررات ملی ساختمان و راهنماها بر اساس شمارهٔ مبحث و ویرایش فهرست شده‌اند و می‌توانید باز یا دانلود کنید.",
+      "answer_en": "The “Library” lists the National Building Regulations parts and guides by part number and edition; you can open or download them there.",
+      "category": "technical"
+    },
+    {
+      "id": 8,
+      "question": "در فایل یا ویدیوی دوره مشکل دارم؛ چه کنم؟",
+      "question_en": "A course file or video does not work. What should I do?",
+      "answer": "یک تیکت با دستهٔ «محصول» ثبت کنید، نام دوره و توضیح مشکل را بنویسید و اگر می‌توانید تصویر صفحه (اسکرین‌شات) پیوست کنید تا سریع‌تر بررسی شود.",
+      "answer_en": "Open a ticket in the “Product” category, write the course name and what goes wrong, and attach a screenshot if you can so it can be checked faster.",
+      "category": "product"
+    }
+  ],
+  "products": [
+    {
+      "id": 101,
+      "slug": "eval-gas-piping-course",
+      "title": "دورهٔ طراحی لوله‌کشی گاز ساختمان (نمونهٔ آزمون)",
+      "title_en": "Building gas piping design course (eval fixture)",
+      "product_type": "course",
+      "price_toman": 450000,
+      "short_description": "طراحی و سایزینگ لوله‌کشی گاز کم‌فشار طبق مبحث ۱۷، در ۱۲ جلسهٔ ویدیویی.",
+      "short_description_en": "Low-pressure gas piping design and sizing per Part 17, 12 video sessions.",
+      "category": "گاز"
+    },
+    {
+      "id": 102,
+      "slug": "eval-autocad-plugin",
+      "title": "افزونهٔ اتوکد ترسیم ایزومتریک گاز (نمونهٔ آزمون)",
+      "title_en": "AutoCAD gas isometric plugin (eval fixture)",
+      "product_type": "plugin",
+      "price_toman": 0,
+      "short_description": "ترسیم خودکار ایزومتریک لوله‌کشی گاز در اتوکد. رایگان.",
+      "short_description_en": "Draws gas piping isometrics in AutoCAD automatically. Free.",
+      "category": "اتوکد"
+    }
+  ]
+}

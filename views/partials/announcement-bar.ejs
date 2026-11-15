@@ -1,0 +1,11 @@
+<%# Thin announcement strip above the header (slot "site.announcement"). Dismissal is remembered per banner version. %>
+<% const bars = locals.bannersFor && !String(locals.currentPath || '').startsWith('/admin') ? bannersFor('site.announcement') : []; %>
+<% if (bars.length) { const b = bars[0]; const texts = b.layers.filter(l => l.kind !== 'button').map(l => layerText(l)).filter(Boolean); const btn = b.layers.find(l => l.kind === 'button' && layerText(l)); const btnIndex = b.layers.filter(l => l.kind === 'button').indexOf(btn); %>
+<div class="nv-announce" style="--nv-bg:<%= b.bg_color %>;--nv-text:<%= b.text_color %>" data-announce="<%= b.id %>-<%= b.version %>" role="region" aria-label="<%= t('banners.announcement') %>">
+  <div class="container nv-announce-inner">
+    <p><% texts.forEach((x, i) => { %><%= i ? ' · ' : '' %><% if (i === 0) { %><b><%= x %></b><% } else { %><%= x %><% } %><% }) %></p>
+    <% if (btn) { %><a href="/go/banner/<%= b.id %>/<%= btnIndex %>" rel="nofollow<%= btn.new_tab ? ' noopener' : '' %>"<% if (btn.new_tab) { %> target="_blank"<% } %>><%= layerText(btn) %> <span aria-hidden="true"><%= locale === 'en' ? '→' : '←' %></span></a><% } %>
+    <button type="button" class="nv-announce-close" data-announce-close aria-label="<%= t('a11y.closeMessage') %>">×</button>
+  </div>
+</div>
+<% } %>

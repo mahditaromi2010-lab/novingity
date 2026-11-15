@@ -3,7 +3,7 @@
   const at = prefix => currentPath === prefix || currentPath.startsWith(prefix + '/');
 %>
 <aside class="admin-sidebar" aria-label="<%= t('adminNav.ariaLabel') %>">
-  <a class="brand brand-light admin-brand" href="<%= roleHome || '/admin' %>"><span class="brand-mark"><img src="/public/images/nogiti-logo-96.webp" srcset="/public/images/nogiti-logo-96.webp 2x, /public/images/nogiti-logo-144.webp 3x" alt="" width="48" height="48" decoding="async"></span><span><strong>Novingity</strong><small><%= t('adminNav.panelLabel') %></small></span></a>
+  <a class="brand brand-light admin-brand" href="<%= roleHome || '/admin' %>"><span class="brand-mark"><%- include('brand-logo') %></span><span><strong>Novingity</strong><small><%= t('adminNav.panelLabel') %></small></span></a>
   <div class="admin-whoami"><span class="avatar-mini" aria-hidden="true"><%= currentAdmin.username.slice(0,1).toUpperCase() %></span><span><b><%= currentAdmin.username %></b><small><%= roleLabels[currentAdmin.role] || currentAdmin.role %></small></span></div>
   <nav class="admin-nav-links">
     <% if (can('overview') || can('content')) { %><div class="admin-nav-label"><%= t('adminNav.contentGroup') %></div><% } %>
@@ -12,12 +12,13 @@
       <%- navItem('/admin/products', '▤', t('adminNav.products'), at('/admin/products')) %>
       <%- navItem('/admin/articles', '▧', t('adminNav.articles'), at('/admin/articles') || at('/admin/article-images')) %>
       <%- navItem('/admin/library', '▥', t('adminNav.library'), at('/admin/library')) %>
+      <%- navItem('/admin/visual/banners', '◩', t('adminNav.visual'), at('/admin/visual')) %>
       <%- navItem('/admin/team', '☺', t('admin.team.title'), at('/admin/team')) %>
       <% if (coverageMapEnabled) { %><%- navItem('/admin/coverage-areas', '◫', t('adminCoverage.title'), at('/admin/coverage-areas')) %><% } %>
     <% } %>
     <% if (can('orders') || can('users') || can('settings') || can('audit') || can('support')) { %><div class="admin-nav-label"><%= t('adminNav.siteGroup') %></div><% } %>
     <% if (can('orders')) { %><%- navItem('/admin/orders', '◷', t('adminNav.orders'), at('/admin/orders')) %><% } %>
-    <% if (can('support')) { %><%- navItem('/admin/tickets', '✉', t('admin.tickets.title'), at('/admin/tickets')) %><% } %>
+    <% if (can('support')) { %><%- navItem('/admin/tickets', '✉', t('admin.tickets.title'), at('/admin/tickets')) %><%- navItem('/admin/support/faqs', '?', t('adminSupport.navLabel'), at('/admin/support')) %><% } %>
     <% if (coverageMapEnabled && can('consultation')) { %><%- navItem('/admin/consultation-requests', '⚑', t('adminNav.consultationRequests'), at('/admin/consultation-requests')) %><% } %>
     <% if (can('users')) { %><%- navItem('/admin/users', '♙', t('adminNav.users'), at('/admin/users')) %><% } %>
     <% if (can('settings')) { %><%- navItem('/admin/settings', '⚙', t('adminNav.settings'), at('/admin/settings')) %><% } %>

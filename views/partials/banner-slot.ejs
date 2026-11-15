@@ -1,0 +1,45 @@
+<%#
+  Promo banners managed in «بنرها و تصاویر». Usage: include('partials/banner-slot', { slot: 'shop.top' })
+  Text and buttons are HTML over the picture (readable, translated, accessible). Buttons go through
+  /go/banner/:id/:n, which counts the click and redirects to the link saved by the admin.
+  Several live banners in one slot: a swipeable row with arrows and dots, no autoplay.
+%>
+<% const list = (locals.bannersFor && typeof slot === 'string') ? bannersFor(slot) : []; %>
+<% if (list.length) { %>
+<section class="nv-banners<%= list.length > 1 ? ' is-multi' : '' %><%= locals.bannerClass ? ' ' + bannerClass : '' %>" aria-label="<%= t('banners.region') %>" data-banner-slot="<%= slot %>">
+  <div class="container">
+    <div class="nv-banner-track"<% if (list.length > 1) { %> data-banner-track tabindex="0" aria-roledescription="carousel"<% } %>>
+    <% list.forEach((b, i) => {
+         const buttons = b.layers.filter(l => l.kind === 'button');
+         const alt = (locale === 'en' ? b.image_alt_en || b.image_alt : b.image_alt || b.image_alt_en) || '';
+         let btnIndex = -1; %>
+      <article class="nv-banner nv-h-<%= b.height %> nv-x-<%= b.content_x %> nv-y-<%= b.content_y %> nv-align-<%= b.text_align %><%= b.desktop_path ? ' has-image' : '' %>"
+        style="--nv-bg:<%= b.bg_color %>;--nv-text:<%= b.text_color %>;--nv-width:<%= b.content_width %>%"<% if (list.length > 1) { %> aria-roledescription="slide" aria-label="<%= i + 1 %> / <%= list.length %>"<% } %>>
+        <% if (b.desktop_path) { %><picture class="nv-banner-media">
+          <% if (b.mobile_path) { %><source media="(max-width: 700px)" srcset="<%= b.mobile_path %>"<% if (b.mobile_w) { %> width="<%= b.mobile_w %>" height="<%= b.mobile_h %>"<% } %>><% } %>
+          <img src="<%= b.desktop_path %>" alt="<%= alt %>"<% if (b.desktop_w) { %> width="<%= b.desktop_w %>" height="<%= b.desktop_h %>"<% } %> loading="<%= locals.bannerEager && i === 0 ? 'eager' : 'lazy' %>" decoding="async" class="nv-fit-<%= b.fit %>">
+        </picture><% } %>
+        <span class="nv-banner-overlay" aria-hidden="true" style="background:<%= bannerOverlay(b) %>"></span>
+        <div class="nv-banner-content">
+          <% b.layers.forEach(l => { const text = layerText(l); if (!text || l.kind === 'button') return; %>
+            <% if (l.kind === 'badge') { %><span class="nv-badge<%= l.hide_mobile ? ' nv-hide-m' : '' %>"><%= text %></span>
+            <% } else if (l.kind === 'title') { %><h2 class="nv-title nv-s-<%= l.size %><%= l.hide_mobile ? ' nv-hide-m' : '' %>"><%= text %></h2>
+            <% } else { %><p class="nv-<%= l.kind %> nv-s-<%= l.size %><%= l.hide_mobile ? ' nv-hide-m' : '' %>"><%= text %></p><% } %>
+          <% }) %>
+          <% if (buttons.length) { %><div class="nv-actions">
+            <% b.layers.forEach(l => { if (l.kind !== 'button') return; btnIndex += 1; const text = layerText(l); if (!text) return; %>
+              <a class="button nv-btn nv-btn-<%= l.style %><%= l.style === 'primary' ? ' button-primary' : '' %><%= l.hide_mobile ? ' nv-hide-m' : '' %>" href="/go/banner/<%= b.id %>/<%= btnIndex %>" rel="nofollow<%= l.new_tab ? ' noopener' : '' %>"<% if (l.new_tab) { %> target="_blank"<% } %>><%= text %><% if (l.new_tab) { %> <span aria-hidden="true">↗</span><span class="sr-only"> (<%= t('banners.newTab') %>)</span><% } else { %> <span aria-hidden="true"><%= locale === 'en' ? '→' : '←' %></span><% } %></a>
+            <% }) %>
+          </div><% } %>
+        </div>
+      </article>
+    <% }) %>
+    </div>
+    <% if (list.length > 1) { %><div class="nv-banner-nav">
+      <button type="button" class="nv-nav-btn" data-banner-prev aria-label="<%= t('banners.prev') %>"><span aria-hidden="true"><%= locale === 'en' ? '‹' : '›' %></span></button>
+      <span class="nv-dots" aria-hidden="true"><% list.forEach((_, i) => { %><i class="<%= i === 0 ? 'is-on' : '' %>"></i><% }) %></span>
+      <button type="button" class="nv-nav-btn" data-banner-next aria-label="<%= t('banners.next') %>"><span aria-hidden="true"><%= locale === 'en' ? '›' : '‹' %></span></button>
+    </div><% } %>
+  </div>
+</section>
+<% } %>

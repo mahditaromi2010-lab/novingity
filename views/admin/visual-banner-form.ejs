@@ -1,0 +1,123 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<%
+  const b = banner || {};
+  const v = (k, d = '') => (b[k] === undefined || b[k] === null ? d : b[k]);
+  const sel = (k, val) => String(v(k)) === String(val) ? 'selected' : '';
+  const toLocal = d => { if (!d) return ''; const x = new Date(d); if (Number.isNaN(x.getTime())) return ''; return new Date(x.getTime() + 210 * 60000).toISOString().slice(0, 16); };
+  const layers = (b.layers && b.layers.length) ? b.layers : [{ kind: 'badge', text: '', size: 'md' }, { kind: 'title', text: '', size: 'lg' }, { kind: 'subtitle', text: '', size: 'md' }, { kind: 'button', text: '', href: '', style: 'primary', size: 'md' }];
+  const slotDef = slots.find(s => s.key === v('slot')) || slots[1];
+  const errKeys = errors || [];
+  const mediaThumb = m => `<img src="${m.path}" alt="" loading="lazy" width="120" height="68">`;
+%>
+<div class="admin-topbar"><div><span class="section-kicker">VISUAL</span><h1><%= b.id ? t('adminVisual.editBanner') : t('adminVisual.newBanner') %></h1><% if (b.id) { %><p><%= b.name %></p><% } %></div>
+  <div class="topbar-actions"><a href="/admin/visual/banners" class="button button-outline button-small"><%= t('common.back') %></a></div></div>
+<%- include('visual-tabs') %>
+
+<% if (errKeys.length) { %><div class="av-errors" role="alert" tabindex="-1" data-error-summary><b><%= t('adminVisual.err.title') %></b><ul><% errKeys.forEach(k => { %><li><%= t('adminVisual.err.' + k) %></li><% }) %></ul></div><% } %>
+
+<div class="av-editor">
+<form class="admin-panel admin-form av-form" id="bannerForm" action="<%= b.id ? `/admin/visual/banners/${b.id}/edit` : '/admin/visual/banners' %>" method="post" enctype="multipart/form-data" data-unsaved-guard data-banner-form>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="tz_offset" value="-210" data-tz-offset>
+
+  <fieldset class="av-fieldset"><legend><%= t('adminVisual.secBasics') %></legend>
+    <div class="form-grid">
+      <div class="form-field form-span-2"><label for="name"><%= t('adminVisual.fName') %> *</label><input class="form-control" id="name" name="name" maxlength="160" required value="<%= v('name') %>" placeholder="<%= t('adminVisual.fNamePh') %>" aria-describedby="hName"><small id="hName"><%= t('adminVisual.fNameHint') %></small></div>
+      <div class="form-field form-span-2"><label for="slot"><%= t('adminVisual.fSlot') %> *</label>
+        <select class="form-control" id="slot" name="slot" data-preview>
+          <% slots.forEach(s => { %><option value="<%= s.key %>" data-kind="<%= s.kind %>" <%= sel('slot', s.key) %>><%= locale === 'en' ? s.en : s.fa %></option><% }) %>
+        </select><small><%= t('adminVisual.fSlotHint') %></small></div>
+      <div class="form-field"><label for="status"><%= t('adminVisual.fStatus') %></label>
+        <select class="form-control" id="status" name="status"><% ['draft', 'published', 'archived'].forEach(s => { %><option value="<%= s %>" <%= sel('status', s) %>><%= t('adminVisual.status.' + s) %></option><% }) %></select></div>
+      <div class="form-field"><label for="priority"><%= t('adminVisual.priority') %></label><input class="form-control" id="priority" name="priority" type="number" min="-1000" max="1000" value="<%= v('priority', 0) %>" aria-describedby="hPri"><small id="hPri"><%= t('adminVisual.priorityHint') %></small></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="av-fieldset"><legend><%= t('adminVisual.secWhen') %></legend>
+    <div class="form-grid">
+      <div class="form-field"><label for="starts_at"><%= t('adminVisual.fStarts') %></label><input class="form-control" id="starts_at" name="starts_at" type="datetime-local" value="<%= toLocal(b.starts_at) %>"></div>
+      <div class="form-field"><label for="ends_at"><%= t('adminVisual.fEnds') %></label><input class="form-control" id="ends_at" name="ends_at" type="datetime-local" value="<%= toLocal(b.ends_at) %>"></div>
+      <div class="form-field"><label for="audience"><%= t('adminVisual.fAudience') %></label>
+        <select class="form-control" id="audience" name="audience"><% ['all', 'guests', 'members'].forEach(a => { %><option value="<%= a %>" <%= sel('audience', a) %>><%= t('adminVisual.aud.' + a) %></option><% }) %></select></div>
+      <div class="form-field"><label for="locale_mode"><%= t('adminVisual.fLocale') %></label>
+        <select class="form-control" id="locale_mode" name="locale_mode"><% ['all', 'fa', 'en'].forEach(a => { %><option value="<%= a %>" <%= sel('locale_mode', a) %>><%= t('adminVisual.loc.' + a) %></option><% }) %></select></div>
+    </div>
+    <small class="av-hint"><%= t('adminVisual.whenHint') %></small>
+  </fieldset>
+
+  <fieldset class="av-fieldset" data-image-section><legend><%= t('adminVisual.secImage') %></legend>
+    <p class="av-hint"><%= t('adminVisual.imageHint') %></p>
+    <% [['desktop', t('adminVisual.fDesktop'), t('adminVisual.fDesktopHint')], ['mobile', t('adminVisual.fMobile'), t('adminVisual.fMobileHint')]].forEach(([k, label, hint]) => { const cur = v(k + '_media_id', null); %>
+    <div class="av-image-field">
+      <label for="<%= k %>_file"><b><%= label %></b></label>
+      <small><%= hint %></small>
+      <% if (b[k + '_path']) { %><div class="av-current"><img src="<%= b[k + '_path'] %>" alt="" width="160" height="90"><span><%= t('adminVisual.current') %></span></div><% } %>
+      <input class="form-control file-control" type="file" id="<%= k %>_file" name="<%= k %>_file" accept="image/jpeg,image/png,image/webp,image/gif" data-preview-file="<%= k %>">
+      <details class="av-picker"><summary><%= t('adminVisual.pickFromLibrary') %> (<%= media.length %>)</summary>
+        <div class="av-picker-grid" role="radiogroup" aria-label="<%= label %>">
+          <label class="av-pick"><input type="radio" name="<%= k %>_media_id" value="none" <%= !cur ? 'checked' : '' %> data-preview-pick="<%= k %>" data-path=""><span class="av-pick-none"><%= t('adminVisual.noImage') %></span></label>
+          <% media.forEach(m => { %><label class="av-pick"><input type="radio" name="<%= k %>_media_id" value="<%= m.id %>" <%= String(cur) === String(m.id) ? 'checked' : '' %> data-preview-pick="<%= k %>" data-path="<%= m.path %>"><%- mediaThumb(m) %><span class="sr-only"><%= m.alt || m.original_name %></span></label><% }) %>
+        </div>
+        <% if (!media.length) { %><p class="av-hint"><%= t('adminVisual.libraryEmpty') %></p><% } %>
+      </details>
+    </div>
+    <% }) %>
+    <div class="form-grid">
+      <div class="form-field"><label for="image_alt"><%= t('adminVisual.fAlt') %></label><input class="form-control" id="image_alt" name="image_alt" maxlength="300" value="<%= v('image_alt') %>" aria-describedby="hAlt"><small id="hAlt"><%= t('adminVisual.fAltHint') %></small></div>
+      <div class="form-field"><label for="image_alt_en"><%= t('adminVisual.fAltEn') %></label><input class="form-control" id="image_alt_en" name="image_alt_en" dir="ltr" maxlength="300" value="<%= v('image_alt_en') %>"></div>
+      <div class="form-field"><label for="fit"><%= t('adminVisual.fFit') %></label><select class="form-control" id="fit" name="fit" data-preview><option value="cover" <%= sel('fit', 'cover') %>><%= t('adminVisual.fit.cover') %></option><option value="contain" <%= sel('fit', 'contain') %>><%= t('adminVisual.fit.contain') %></option></select></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="av-fieldset"><legend><%= t('adminVisual.secLook') %></legend>
+    <div class="form-grid av-grid-3">
+      <div class="form-field"><label for="bg_color"><%= t('adminVisual.fBg') %></label><input class="form-control av-color" id="bg_color" name="bg_color" type="color" value="<%= v('bg_color', '#0b261f') %>" data-preview></div>
+      <div class="form-field"><label for="text_color"><%= t('adminVisual.fTextColor') %></label><input class="form-control av-color" id="text_color" name="text_color" type="color" value="<%= v('text_color', '#ffffff') %>" data-preview></div>
+      <div class="form-field"><label for="overlay_color"><%= t('adminVisual.fOverlay') %></label><input class="form-control av-color" id="overlay_color" name="overlay_color" type="color" value="<%= v('overlay_color', '#000000') %>" data-preview></div>
+      <div class="form-field"><label for="overlay_opacity"><%= t('adminVisual.fOpacity') %> <output data-out-for="overlay_opacity"><%= Math.round(Number(v('overlay_opacity', 0.45)) * 100) %>٪</output></label><input id="overlay_opacity" name="overlay_opacity" type="range" min="0" max="1" step="0.05" value="<%= v('overlay_opacity', 0.45) %>" data-preview></div>
+      <div class="form-field"><label for="overlay_direction"><%= t('adminVisual.fDirection') %></label><select class="form-control" id="overlay_direction" name="overlay_direction" data-preview><% ['to-start', 'to-end', 'to-top', 'to-bottom', 'flat', 'none'].forEach(d => { %><option value="<%= d %>" <%= sel('overlay_direction', d) %>><%= t('adminVisual.dir.' + d) %></option><% }) %></select></div>
+      <div class="form-field"><label for="height"><%= t('adminVisual.fHeight') %></label><select class="form-control" id="height" name="height" data-preview><% ['sm', 'md', 'lg'].forEach(d => { %><option value="<%= d %>" <%= sel('height', d) %>><%= t('adminVisual.h.' + d) %></option><% }) %></select></div>
+      <div class="form-field"><label for="content_x"><%= t('adminVisual.fX') %></label><select class="form-control" id="content_x" name="content_x" data-preview><% ['start', 'center', 'end'].forEach(d => { %><option value="<%= d %>" <%= sel('content_x', d) %>><%= t('adminVisual.x.' + d) %></option><% }) %></select></div>
+      <div class="form-field"><label for="content_y"><%= t('adminVisual.fY') %></label><select class="form-control" id="content_y" name="content_y" data-preview><% ['top', 'center', 'bottom'].forEach(d => { %><option value="<%= d %>" <%= sel('content_y', d) %>><%= t('adminVisual.y.' + d) %></option><% }) %></select></div>
+      <div class="form-field"><label for="text_align"><%= t('adminVisual.fAlign') %></label><select class="form-control" id="text_align" name="text_align" data-preview><% ['start', 'center', 'end'].forEach(d => { %><option value="<%= d %>" <%= sel('text_align', d) %>><%= t('adminVisual.x.' + d) %></option><% }) %></select></div>
+      <div class="form-field form-span-2"><label for="content_width"><%= t('adminVisual.fWidth') %> <output data-out-for="content_width"><%= v('content_width', 60) %>٪</output></label><input id="content_width" name="content_width" type="range" min="30" max="100" step="5" value="<%= v('content_width', 60) %>" data-preview></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="av-fieldset"><legend><%= t('adminVisual.secContent') %></legend>
+    <p class="av-hint"><%= t('adminVisual.contentHint') %></p>
+    <ol class="av-layers" data-layers>
+      <% layers.forEach(l => { %><%- include('visual-layer-row', { l }) %><% }) %>
+    </ol>
+    <template data-layer-template><%- include('visual-layer-row', { l: { kind: 'text', text: '', text_en: '', size: 'md', style: 'primary' } }) %></template>
+    <button type="button" class="button button-outline button-small" data-add-layer>＋ <%= t('adminVisual.addLayer') %></button>
+  </fieldset>
+
+  <div class="form-actions av-actions">
+    <button class="button button-primary" type="submit" data-busy-label="<%= t('adminVisual.saving') %>"><%= t('common.save') %></button>
+    <a href="/admin/visual/banners" class="button button-outline"><%= t('common.cancel') %></a>
+  </div>
+</form>
+
+<aside class="av-preview-wrap" aria-label="<%= t('adminVisual.preview') %>">
+  <div class="av-preview-head"><b><%= t('adminVisual.preview') %></b>
+    <div class="av-seg" role="group" aria-label="<%= t('adminVisual.previewDevice') %>"><button type="button" class="is-on" data-device="desktop" aria-pressed="true"><%= t('adminVisual.desktop') %></button><button type="button" data-device="mobile" aria-pressed="false"><%= t('adminVisual.mobile') %></button></div>
+    <div class="av-seg" role="group" aria-label="<%= t('nav.language') %>"><button type="button" class="is-on" data-lang="fa" aria-pressed="true">فا</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div>
+  </div>
+  <div class="av-preview" data-preview-root dir="rtl">
+    <div class="nv-announce av-preview-bar" data-preview-bar hidden><div class="nv-announce-inner"><p data-bar-text></p><a href="#" data-bar-link tabindex="-1"></a></div></div>
+    <article class="nv-banner" data-preview-banner>
+      <picture class="nv-banner-media" data-preview-media hidden><img alt="" data-preview-img></picture>
+      <span class="nv-banner-overlay" data-preview-overlay aria-hidden="true"></span>
+      <div class="nv-banner-content" data-preview-content></div>
+    </article>
+  </div>
+  <p class="av-hint"><%= t('adminVisual.previewHint') %></p>
+  <% if (b.id) { %><div class="av-side-actions">
+    <form action="/admin/visual/banners/<%= b.id %>/status" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="back" value="edit"><input type="hidden" name="status" value="<%= b.status === 'published' ? 'draft' : 'published' %>"><button type="submit" class="button <%= b.status === 'published' ? 'button-outline' : 'button-primary' %> button-small"><%= b.status === 'published' ? t('adminVisual.unpublish') : t('adminVisual.publishNow') %></button></form>
+    <small><%= t('adminVisual.clicks') %>: <%= Number(b.clicks || 0).toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR') %></small>
+  </div><% } %>
+</aside>
+</div>
+<script type="application/json" id="av-i18n"><%- JSON.stringify({ desktopPath: b.desktop_path || '', mobilePath: b.mobile_path || '' }).replace(/</g, '\\u003c') %></script>
+</div></div><script defer src="/public/js/admin-visual.js?v=<%= locals.assetVersion || '0' %>"></script><%- include('../partials/footer') %>
