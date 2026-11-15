@@ -137,7 +137,7 @@
   "tools.titlePre": "A quick first estimate,",
   "tools.titleEm": "with every step laid out clearly.",
   "tools.lead": "Pick a calculator to get a first read on your MEP requirements. Every input and result is shown in full, with nothing hidden.",
-  "tools.disclaimer": "These calculators are not a substitute for full engineering design or a complete check against the current official tables and codes. Before acting on a result, verify it against the current regulation and your project's responsible engineer.",
+  "tools.disclaimer": "Before acting on a result, coordinate it with the inspector or the responsible person, or have it reviewed.",
   "tools.nav1": "Combustion air",
   "tools.nav2": "Low-pressure pipe",
   "tools.nav3": "2 psi pipe",
