@@ -431,6 +431,7 @@ label { color: var(--ink); font-size: 14.5px; font-weight: 700; }
 .is-public .tools-disclaimer { background: var(--sheet); border: 1px solid var(--rule); border-inline-start: 4px solid var(--flame); border-radius: 8px; padding: 14px 16px; }
 .is-public .tools-disclaimer > span { border-color: var(--flame); color: #8a4b05; font-size: 13px; font-weight: 800; }
 .is-public .tools-disclaimer p { color: var(--ink-2); font-size: 14.5px; line-height: 1.95; }
+.tools-plain-note { margin-top: 18px; color: var(--ink-2); font-size: 15px; line-height: 1.95; max-width: 60ch; }
 .tools-nav-item { font-size: 14px; color: var(--ink-2); background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding: 9px 13px; transition: border-color var(--dur-2), color var(--dur-2); }
 .tools-nav-item span { color: var(--emerald); }
 .tools-nav-item:hover { border-color: var(--emerald); color: var(--emerald-deep); }
