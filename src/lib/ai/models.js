@@ -10,12 +10,13 @@ const MODELS = {
   mabhas17Answer: { env: 'AI_MODEL_ANSWER', default: 'claude-sonnet-5-5', maxTokens: 900, timeoutMs: 45000 },
   mabhas17Escalate: { env: 'AI_MODEL_ESCALATE', default: 'claude-opus-5-5', maxTokens: 1400, timeoutMs: 70000 },
   embeddings: { env: 'AI_MODEL_EMBED', default: 'text-embedding-3-large', dims: 1024 },
-  // Help centre (support). Short answers grounded in FAQ + product data, ticket triage to JSON, admin reply drafts.
-  // Fast/cheap tier on purpose: the knowledge is small and checked by the server; see docs/ai/support-models.md.
-  // Provisional pick until scripts/ai/eval-support.js runs with credit: the cheapest model that passes wins.
-  supportChat: { env: 'AI_MODEL_SUPPORT', default: 'claude-haiku-5-5', maxTokens: 600, timeoutMs: 25000 },
-  supportTriage: { env: 'AI_MODEL_SUPPORT_TRIAGE', default: 'claude-haiku-5-5', maxTokens: 220, timeoutMs: 15000 },
-  supportDraft: { env: 'AI_MODEL_SUPPORT_DRAFT', default: 'claude-haiku-5-5', maxTokens: 700, timeoutMs: 30000 }
+  // Help centre (support). Picked by scripts/ai/eval-support.js on 2026-11-16 (docs/ai/support-model-evals.md):
+  //  - answers: deepseek-v4.1-flash passed 26/26 cases and was the cheapest (~$0.08 per 1,000 questions);
+  //  - triage: it returned no usable JSON (reasoning used the small token budget), so triage uses gpt-5.4-nano
+  //    (10/10, cheapest of the models that passed); drafts use the answer model with more room.
+  supportChat: { env: 'AI_MODEL_SUPPORT', default: 'deepseek-v4.1-flash', maxTokens: 700, timeoutMs: 30000 },
+  supportTriage: { env: 'AI_MODEL_SUPPORT_TRIAGE', default: 'gpt-5.4-nano', maxTokens: 220, timeoutMs: 15000 },
+  supportDraft: { env: 'AI_MODEL_SUPPORT_DRAFT', default: 'deepseek-v4.1-flash', maxTokens: 1000, timeoutMs: 40000 }
 };
 
 /** Candidates compared by scripts/ai/eval-support.js (all on GapGPT; cheapest first by list price). */

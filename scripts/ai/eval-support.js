@@ -106,7 +106,8 @@ async function main() {
     `Run: ${new Date().toISOString().slice(0, 10)} · cases: ${cases.length} (evals/support.jsonl) · threshold: ${Math.round(THRESHOLD * 100)}%`, '',
     '| Model | Answers pass | Triage pass | p50 ms | p95 ms | avg tokens in/out | USD per 1,000 questions |', '|---|---|---|---|---|---|---|',
     ...rows.map(r => `| ${r.model} | ${r.pass}/${r.total} (${Math.round(r.rate * 100)}%) | ${r.triPass}/${r.triTotal} | ${r.p50} | ${r.p95} | ${r.avgIn}/${r.avgOut} | ${r.per1k == null ? 'n/a (no --prices)' : r.per1k.toFixed(3)} |`), '',
-    `**Pick:** ${passing[0] ? passing[0].model + ' (cheapest that passes)' : 'no model passed — keep the current default and improve the prompt/FAQ'}`, '',
+    `**Pick (answers + triage with one model):** ${passing[0] ? passing[0].model : 'none — pick per feature below'}`,
+    `**Answers:** ${(rows.filter(r => r.rate >= THRESHOLD).sort((a, b) => (a.per1k ?? Infinity) - (b.per1k ?? Infinity))[0] || {}).model || 'none'} · **Triage:** ${(rows.filter(r => r.triPass / r.triTotal >= 0.8).sort((a, b) => (a.per1k ?? Infinity) - (b.per1k ?? Infinity))[0] || {}).model || 'none'} (cheapest that passes each)`, '',
     '## Failures', ...rows.flatMap(r => [`### ${r.model}`, ...r.failures.map(f => `- ${f.id}: ${f.f.join('; ')} — «${f.answer.replace(/\n/g, ' ')}»`)])
   ].join('\n');
   fs.writeFileSync(path.join(ROOT, 'docs', 'ai', 'support-model-evals.md'), md + '\n');
