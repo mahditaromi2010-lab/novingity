@@ -48,6 +48,13 @@ services:
       AI_BASE_URL: ${AI_BASE_URL:-https://api.gapapi.com/v1}
       AI_MODEL_ANSWER: ${AI_MODEL_ANSWER:-}
       AI_MODEL_EMBED: ${AI_MODEL_EMBED:-}
+      # Help centre AI («پشتیبان هوشمند»): answers, ticket sorting, reply drafts. Off → FAQ search and keyword rules.
+      FEATURE_AI_SUPPORT: ${FEATURE_AI_SUPPORT:-false}
+      AI_MODEL_SUPPORT: ${AI_MODEL_SUPPORT:-}
+      AI_MODEL_SUPPORT_TRIAGE: ${AI_MODEL_SUPPORT_TRIAGE:-}
+      AI_MODEL_SUPPORT_DRAFT: ${AI_MODEL_SUPPORT_DRAFT:-}
+      # Emergency stop for every AI feature at once (true = all fall back to non-AI behaviour).
+      AI_KILL_SWITCH: ${AI_KILL_SWITCH:-false}
       AI_DAILY_REQUEST_LIMIT: ${AI_DAILY_REQUEST_LIMIT:-300}
       AI_DAILY_TOKEN_LIMIT: ${AI_DAILY_TOKEN_LIMIT:-3000000}
     volumes:

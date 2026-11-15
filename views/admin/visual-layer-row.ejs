@@ -1,0 +1,24 @@
+<%# One content layer of a banner (badge / title / subtitle / text / button). Parallel arrays: layer_kind[], layer_text[], ... %>
+<li class="av-layer" data-layer data-kind="<%= l.kind %>">
+  <div class="av-layer-head">
+    <select class="form-control av-kind" name="layer_kind" aria-label="<%= t('adminVisual.layerKind') %>" data-layer-kind>
+      <% ['badge', 'title', 'subtitle', 'text', 'button'].forEach(k => { %><option value="<%= k %>" <%= l.kind === k ? 'selected' : '' %>><%= t('adminVisual.kind.' + k) %></option><% }) %>
+    </select>
+    <select class="form-control av-size" name="layer_size" aria-label="<%= t('adminVisual.layerSize') %>"><% ['sm', 'md', 'lg', 'xl'].forEach(s => { %><option value="<%= s %>" <%= (l.size || 'md') === s ? 'selected' : '' %>><%= t('adminVisual.size.' + s) %></option><% }) %></select>
+    <select class="form-control av-size" name="layer_hide_mobile" aria-label="<%= t('adminVisual.hideMobile') %>"><option value="0"><%= t('adminVisual.showMobile') %></option><option value="1" <%= l.hide_mobile ? 'selected' : '' %>><%= t('adminVisual.hideMobile') %></option></select>
+    <span class="av-layer-tools">
+      <button type="button" class="av-icon-btn" data-layer-up aria-label="<%= t('adminVisual.moveUp') %>">↑</button>
+      <button type="button" class="av-icon-btn" data-layer-down aria-label="<%= t('adminVisual.moveDown') %>">↓</button>
+      <button type="button" class="av-icon-btn danger-text" data-layer-remove aria-label="<%= t('adminVisual.removeLayer') %>">×</button>
+    </span>
+  </div>
+  <div class="av-layer-body">
+    <input class="form-control" name="layer_text" maxlength="300" value="<%= l.text || '' %>" placeholder="<%= t('adminVisual.textFa') %>" aria-label="<%= t('adminVisual.textFa') %>" dir="rtl">
+    <input class="form-control" name="layer_text_en" maxlength="300" value="<%= l.text_en || '' %>" placeholder="<%= t('adminVisual.textEn') %>" aria-label="<%= t('adminVisual.textEn') %>" dir="ltr">
+  </div>
+  <div class="av-layer-button" data-button-fields>
+    <input class="form-control" name="layer_href" maxlength="2048" value="<%= l.href || '' %>" placeholder="/shop?type=course   ·   https://…" aria-label="<%= t('adminVisual.href') %>" dir="ltr" inputmode="url">
+    <select class="form-control" name="layer_style" aria-label="<%= t('adminVisual.btnStyle') %>"><% ['primary', 'light', 'outline'].forEach(s => { %><option value="<%= s %>" <%= (l.style || 'primary') === s ? 'selected' : '' %>><%= t('adminVisual.btn.' + s) %></option><% }) %></select>
+    <select class="form-control" name="layer_new_tab" aria-label="<%= t('adminVisual.newTab') %>"><option value="0"><%= t('adminVisual.sameTab') %></option><option value="1" <%= l.new_tab ? 'selected' : '' %>><%= t('adminVisual.newTab') %></option></select>
+  </div>
+</li>

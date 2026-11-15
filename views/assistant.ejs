@@ -1,6 +1,6 @@
 <%- include('partials/header', {title, metaDescription}) %>
 <link rel="stylesheet" href="/public/css/assistant.css?v=<%= locals.assetVersion || '0' %>">
-<section class="page-hero as-hero"><div class="container as-hero-inner">
+<section class="page-hero as-hero"><%- include('partials/hero-image', { key: 'assistant.hero' }) %><div class="container as-hero-inner">
   <div class="breadcrumb"><a href="/"><%= t('tools.breadcrumbHome') %></a><span>/</span><a href="/tools"><%= t('nav.tools') %></a><span>/</span><span><%= t('nav.assistant') %></span></div>
   <span class="section-kicker"><%= t('assistant.kicker') %></span>
   <h1><%= t('assistant.titlePre') %><br><em><%= t('assistant.titleEm') %></em></h1>

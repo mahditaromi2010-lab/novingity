@@ -1,0 +1,17 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<% const f = faq || {}; %>
+<div class="admin-topbar"><div><span class="section-kicker">HELP CENTRE</span><h1><%= title %></h1></div><a href="/admin/support/faqs" class="button button-outline button-small"><%= t('common.back') %></a></div>
+<form class="admin-panel admin-form" action="<%= f.id ? `/admin/support/faqs/${f.id}/edit` : '/admin/support/faqs' %>" method="post" data-unsaved-guard>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="form-grid">
+    <div class="form-field form-span-2"><label for="question"><%= t('adminSupport.fQuestion') %> *</label><input class="form-control" id="question" name="question" maxlength="300" required value="<%= f.question || '' %>"></div>
+    <div class="form-field form-span-2"><label for="answer"><%= t('adminSupport.fAnswer') %> *</label><textarea class="form-control" id="answer" name="answer" rows="6" maxlength="4000" required aria-describedby="hAns"><%= f.answer || '' %></textarea><small id="hAns"><%= t('adminSupport.fAnswerHint') %></small></div>
+    <div class="form-field form-span-2"><label for="question_en"><%= t('adminSupport.fQuestionEn') %></label><input class="form-control" id="question_en" name="question_en" dir="ltr" maxlength="300" value="<%= f.question_en || '' %>"></div>
+    <div class="form-field form-span-2"><label for="answer_en"><%= t('adminSupport.fAnswerEn') %></label><textarea class="form-control" id="answer_en" name="answer_en" dir="ltr" rows="5" maxlength="4000"><%= f.answer_en || '' %></textarea></div>
+    <div class="form-field"><label for="category"><%= t('common.category') %></label><select class="form-control" id="category" name="category"><% categories.forEach(c => { %><option value="<%= c %>" <%= (f.category || 'general') === c ? 'selected' : '' %>><%= t('support.cat.' + c) %></option><% }) %></select></div>
+    <div class="form-field"><label for="sort_order"><%= t('adminLibrary.fOrder') %></label><input class="form-control" id="sort_order" name="sort_order" type="number" value="<%= f.sort_order ?? 0 %>"></div>
+    <div class="form-field form-span-2"><label class="check-line"><input type="checkbox" name="is_published" <%= f.is_published !== false ? 'checked' : '' %>> <%= t('adminSupport.fPublished') %></label></div>
+  </div>
+  <div class="form-actions"><button class="button button-primary" type="submit" data-busy-label="<%= t('adminVisual.saving') %>"><%= t('common.save') %></button><a href="/admin/support/faqs" class="button button-outline"><%= t('common.cancel') %></a></div>
+</form>
+</div></div><%- include('../partials/footer') %>

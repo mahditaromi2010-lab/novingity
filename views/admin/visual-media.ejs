@@ -1,0 +1,43 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<%
+  const nf = n => Number(n || 0).toLocaleString(locale === 'en' ? 'en-US' : 'fa-IR');
+  const size = b => b >= 1048576 ? `${nf(Math.round(b / 104857.6) / 10)} MB` : `${nf(Math.max(1, Math.round((b || 0) / 1024)))} KB`;
+%>
+<div class="admin-topbar"><div><span class="section-kicker">VISUAL</span><h1><%= t('adminVisual.mediaTitle') %></h1><p><%= t('adminVisual.mediaSubtitle').replace('{n}', nf(total)) %></p></div></div>
+<%- include('visual-tabs') %>
+
+<section class="admin-panel">
+  <form action="/admin/visual/media" method="post" enctype="multipart/form-data" class="av-upload">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-field"><label for="files"><%= t('adminVisual.uploadMany') %></label><input class="form-control file-control" id="files" type="file" name="files" multiple accept="image/jpeg,image/png,image/webp,image/gif" required aria-describedby="hFiles"><small id="hFiles"><%= t('adminVisual.uploadHint') %></small></div>
+    <div class="form-field"><label for="alt"><%= t('adminVisual.fAlt') %></label><input class="form-control" id="alt" name="alt" maxlength="300"></div>
+    <button class="button button-primary" type="submit" data-busy-label="<%= t('adminVisual.uploading') %>"><%= t('adminVisual.upload') %></button>
+  </form>
+</section>
+
+<section class="admin-panel">
+  <form class="av-filter" method="get" action="/admin/visual/media" role="search"><label for="mq" class="sr-only"><%= t('adminVisual.search') %></label><input class="form-control" id="mq" name="q" type="search" value="<%= q %>" placeholder="<%= t('adminVisual.search') %>"><button class="button button-outline button-small" type="submit"><%= t('adminVisual.search') %></button></form>
+  <% if (!media.length) { %><div class="empty-state av-empty"><span aria-hidden="true">▣</span><h3><%= t('adminVisual.mediaEmpty') %></h3></div><% } %>
+  <div class="av-media-grid">
+    <% media.forEach(m => { %>
+    <article class="av-media" id="media-<%= m.id %>">
+      <a href="<%= m.path %>" target="_blank" rel="noopener" class="av-media-img"><img src="<%= m.path %>" alt="<%= m.alt %>" loading="lazy"<% if (m.width) { %> width="<%= m.width %>" height="<%= m.height %>"<% } %>></a>
+      <div class="av-media-info">
+        <b title="<%= m.original_name %>">#<%= m.id %> · <%= m.original_name || '—' %></b>
+        <small dir="ltr"><%= m.width ? `${m.width}×${m.height} · ` : '' %><%= size(m.size_bytes) %></small>
+        <small><%= m.uses ? t('adminVisual.usedIn').replace('{n}', nf(m.uses)) : t('adminVisual.unused') %></small>
+        <input class="form-control av-path" value="<%= m.path %>" readonly dir="ltr" aria-label="<%= t('adminVisual.path') %>" data-select-on-focus>
+      </div>
+      <form action="/admin/visual/media/<%= m.id %>" method="post" class="av-alt-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="page" value="<%= page %>">
+        <label class="sr-only" for="alt-<%= m.id %>"><%= t('adminVisual.fAlt') %></label><input class="form-control" id="alt-<%= m.id %>" name="alt" maxlength="300" value="<%= m.alt %>" placeholder="<%= t('adminVisual.fAlt') %>">
+        <label class="sr-only" for="alten-<%= m.id %>"><%= t('adminVisual.fAltEn') %></label><input class="form-control" id="alten-<%= m.id %>" name="alt_en" maxlength="300" value="<%= m.alt_en %>" dir="ltr" placeholder="Alt text (English)">
+        <button type="submit" class="button button-outline button-small"><%= t('common.save') %></button>
+      </form>
+      <% if (!m.uses) { %><form action="/admin/visual/media/<%= m.id %>/delete" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button-link danger-text" data-confirm="<%= t('adminVisual.mediaDeleteConfirm') %>" data-confirm-label="<%= t('common.delete') %>"><%= t('common.delete') %></button></form><% } %>
+    </article>
+    <% }) %>
+  </div>
+  <% if (pages > 1) { %><nav class="pagination" aria-label="<%= t('adminVisual.pages') %>"><% for (let i = 1; i <= pages; i++) { %><a href="/admin/visual/media?page=<%= i %><%= q ? '&q=' + encodeURIComponent(q) : '' %>"<%- i === page ? ' aria-current="page" class="is-active"' : '' %>><%= nf(i) %></a><% } %></nav><% } %>
+</section>
+</div></div><script defer src="/public/js/admin-visual.js?v=<%= locals.assetVersion || '0' %>"></script><%- include('../partials/footer') %>

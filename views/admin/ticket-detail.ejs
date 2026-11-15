@@ -1,23 +1,66 @@
 <%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
-<div class="admin-topbar"><div><span class="section-kicker">SUPPORT TICKET #<%= ticket.id %></span><h1><%= ticket.subject %></h1><p>کاربر: <%= (ticket.first_name+' '+ticket.last_name).trim() || ticket.phone %> · <span dir="ltr"><%= ticket.phone %></span></p></div><a href="/admin/tickets" class="button button-outline button-small"><%= t('common.back') %></a></div>
+<link rel="stylesheet" href="/public/css/support.css?v=<%= locals.assetVersion || '0' %>">
+<%
+  const dt = d => new Date(d).toLocaleString(locale === 'en' ? 'en-GB' : 'fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'medium', timeStyle: 'short' });
+  const customer = (ticket.first_name + ' ' + ticket.last_name).trim() || ticket.phone;
+  const hasSuggestion = ticket.ai_at && (ticket.ai_category !== ticket.category || ticket.ai_priority !== ticket.priority);
+%>
+<div class="admin-topbar"><div><span class="section-kicker">SUPPORT TICKET #<%= ticket.id %></span><h1><%= ticket.subject %></h1><p><%= t('admin.tickets.customer') %>: <%= customer %> · <span dir="ltr"><%= ticket.phone %></span> · <%= dt(ticket.created_at) %></p></div><a href="/admin/tickets" class="button button-outline button-small"><%= t('common.back') %></a></div>
+
+<div class="sp-admin-grid">
 <section class="admin-panel">
-  <form action="/admin/tickets/<%= ticket.id %>/status" method="post" class="filter-bar">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <div class="filter-field"><label for="status"><%= t('common.status') %></label><select class="form-control" id="status" name="status"><% ['open','pending','answered','closed'].forEach(s => { %><option value="<%= s %>" <%= ticket.status===s?'selected':'' %>><%= t('tickets.status.'+s) %></option><% }) %></select></div>
-    <div class="filter-field"><label for="priority"><%= t('common.priority') %></label><select class="form-control" id="priority" name="priority"><% ['low','normal','high','urgent'].forEach(p => { %><option value="<%= p %>" <%= ticket.priority===p?'selected':'' %>><%= t('tickets.priority.'+p) %></option><% }) %></select></div>
-    <div class="filter-actions"><button class="button button-dark button-small" type="submit"><%= t('admin.tickets.changeStatus') %></button></div>
-  </form>
-  <div class="ticket-thread">
+  <ol class="ticket-thread sp-thread-list">
     <% messages.forEach(m => { %>
-    <div class="ticket-message ticket-message-<%= m.author_type %>">
-      <div class="ticket-message-head"><b><%= m.author_type === 'admin' ? 'پشتیبانی' : ((ticket.first_name+' '+ticket.last_name).trim() || 'کاربر') %></b><time><%= new Date(m.created_at).toLocaleString('fa-IR', { dateStyle: 'medium', timeStyle: 'short' }) %></time></div>
-      <p><%= m.body %></p>
-    </div>
+    <li class="ticket-message ticket-message-<%= m.author_type %>">
+      <div class="ticket-message-head"><b><%= m.author_type === 'admin' ? t('tickets.supportAuthor') : customer %><% if (m.ai_assisted) { %> <small class="sp-ai-tag"><%= t('admin.tickets.aiAssisted') %></small><% } %></b><time><%= dt(m.created_at) %></time></div>
+      <p class="sp-body"><%= m.body %></p>
+      <% if (m.attachment_key) { %><a class="sp-attachment" href="/admin/tickets/<%= ticket.id %>/files/<%= m.id %>" target="_blank" rel="noopener"><span aria-hidden="true">📎</span> <%= m.attachment_name %></a><% } %>
+    </li>
     <% }) %>
-  </div>
-  <form action="/admin/tickets/<%= ticket.id %>/reply" method="post" class="ticket-reply-form">
+  </ol>
+
+  <form action="/admin/tickets/<%= ticket.id %>/reply" method="post" class="ticket-reply-form" enctype="multipart/form-data" data-admin-reply>
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <textarea class="form-control" name="message" rows="4" maxlength="4000" placeholder="<%= t('tickets.replyPlaceholder') %>" required></textarea>
-    <div class="form-actions"><button class="button button-primary" type="submit"><%= t('common.reply') %></button></div>
+    <input type="hidden" name="ai_assisted" value="<%= draft ? '1' : '0' %>" data-ai-assisted>
+    <div class="sp-reply-head">
+      <label for="reply"><b><%= t('admin.tickets.yourReply') %></b></label>
+      <% if (aiDraftAvailable) { %><button type="submit" class="button button-outline button-small" formaction="/admin/tickets/<%= ticket.id %>/ai-draft" formnovalidate formenctype="application/x-www-form-urlencoded" data-ai-draft><span aria-hidden="true">✦</span> <%= t('admin.tickets.aiDraft') %></button><% } %>
+    </div>
+    <% if (draft) { %><p class="sp-draft-note" role="status"><%= t('admin.tickets.draftNote') %></p><% } %>
+    <p class="sp-draft-note" role="status" data-draft-note hidden><%= t('admin.tickets.draftNote') %></p>
+    <textarea class="form-control" id="reply" name="message" rows="7" maxlength="4000" placeholder="<%= t('tickets.replyPlaceholder') %>" required data-reply-text><%= draft || '' %></textarea>
+    <div class="sp-reply-row"><label for="attachment" class="sp-attach-label"><span aria-hidden="true">📎</span> <%= t('support.attachment') %></label><input class="form-control file-control" id="attachment" type="file" name="attachment" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"></div>
+    <div class="form-actions"><button class="button button-primary" type="submit" data-busy-label="<%= t('support.sendingTicket') %>"><%= t('common.reply') %></button><button class="button button-outline" type="submit" name="close" value="1"><%= t('admin.tickets.replyAndClose') %></button></div>
   </form>
-</section></div></div><%- include('../partials/footer') %>
+</section>
+
+<aside class="sp-admin-side">
+  <section class="admin-panel">
+    <h2 class="sp-side-title"><%= t('admin.tickets.details') %></h2>
+    <form action="/admin/tickets/<%= ticket.id %>/status" method="post" class="form-stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="status"><%= t('common.status') %></label><select class="form-control" id="status" name="status"><% ['open','pending','answered','closed'].forEach(s => { %><option value="<%= s %>" <%= ticket.status===s?'selected':'' %>><%= t('tickets.status.'+s) %></option><% }) %></select>
+      <label for="priority"><%= t('common.priority') %></label><select class="form-control" id="priority" name="priority"><% ['low','normal','high','urgent'].forEach(p => { %><option value="<%= p %>" <%= ticket.priority===p?'selected':'' %>><%= t('tickets.priority.'+p) %></option><% }) %></select>
+      <label for="category"><%= t('common.category') %></label><select class="form-control" id="category" name="category"><% ['order','product','account','technical','other'].forEach(c => { %><option value="<%= c %>" <%= ticket.category===c?'selected':'' %>><%= t('tickets.category.'+c) %></option><% }) %></select>
+      <button class="button button-dark button-small" type="submit"><%= t('admin.tickets.changeStatus') %></button>
+    </form>
+  </section>
+
+  <section class="admin-panel sp-triage">
+    <h2 class="sp-side-title"><%= t('admin.tickets.triageTitle') %></h2>
+    <% if (ticket.ai_at) { %>
+      <% if (ticket.ai_summary) { %><p><%= ticket.ai_summary %></p><% } %>
+      <p><small><%= t('common.category') %>: <b><%= t('tickets.category.' + ticket.ai_category) %></b> · <%= t('common.priority') %>: <b><%= t('tickets.priority.' + ticket.ai_priority) %></b></small></p>
+      <p><small class="muted-text"><%= ticket.ai_model ? t('admin.tickets.byAi').replace('{model}', ticket.ai_model) : t('admin.tickets.byRules') %></small></p>
+      <% if (hasSuggestion) { %><form action="/admin/tickets/<%= ticket.id %>/apply-triage" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-outline button-small" type="submit"><%= t('admin.tickets.applySuggestion') %></button></form><% } %>
+    <% } else { %><p class="muted-text"><%= t('admin.tickets.noTriage') %></p><% } %>
+    <form action="/admin/tickets/<%= ticket.id %>/retriage" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button-link" type="submit"><%= t('admin.tickets.retriage') %></button></form>
+  </section>
+
+  <% if (ticket.rating) { %><section class="admin-panel"><h2 class="sp-side-title"><%= t('admin.tickets.customerRating') %></h2><p><%= ticket.rating > 0 ? '👍' : '👎' %> <%= ticket.rating_comment || '' %></p></section><% } %>
+  <% if (history.length) { %><section class="admin-panel"><h2 class="sp-side-title"><%= t('admin.tickets.otherTickets') %></h2><ul class="sp-history"><% history.forEach(h => { %><li><a href="/admin/tickets/<%= h.id %>">#<%= h.id %> <%= h.subject %></a> <span class="status-pill status-ticket-<%= h.status %>"><%= t('tickets.status.' + h.status) %></span></li><% }) %></ul></section><% } %>
+</aside>
+</div>
+<% const ui = { draftError: t('admin.tickets.aiFailed'), drafting: t('admin.tickets.drafting') }; %>
+<script type="application/json" id="support-ui"><%- JSON.stringify(ui).replace(/</g, '\\u003c') %></script>
+</div></div><script defer src="/public/js/support.js?v=<%= locals.assetVersion || '0' %>"></script><%- include('../partials/footer') %>

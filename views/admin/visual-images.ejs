@@ -1,0 +1,41 @@
+<%- include('../partials/header', {title}) %><div class="admin-shell"><%- include('../partials/admin-nav') %><div class="admin-content">
+<%
+  const groups = ['brand', 'home', 'pages', 'covers'];
+  const when = d => d ? new Date(d).toLocaleString(locale === 'en' ? 'en-GB' : 'fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'medium', timeStyle: 'short' }) : '';
+%>
+<div class="admin-topbar"><div><span class="section-kicker">VISUAL</span><h1><%= t('adminVisual.imagesTitle') %></h1><p><%= t('adminVisual.imagesSubtitle') %></p></div></div>
+<%- include('visual-tabs') %>
+<% groups.forEach(g => { const list = slots.filter(s => s.group === g); if (!list.length) return; %>
+<section class="admin-panel">
+  <div class="admin-panel-head"><div><h2><%= t('adminVisual.group.' + g) %></h2></div></div>
+  <div class="av-slot-grid">
+    <% list.forEach(s => { const cur = current[s.key]; const src = cur ? cur.path : s.default; %>
+    <article class="av-slot" id="slot-<%= s.key %>">
+      <div class="av-slot-preview<%= s.key === 'brand.logo' ? ' is-logo' : '' %>">
+        <% if (src) { %><img src="<%= src %>" alt="" loading="lazy"<% if (cur && cur.width) { %> width="<%= cur.width %>" height="<%= cur.height %>"<% } %>>
+        <% } else { %><span class="av-slot-default"><%= t('adminVisual.drawnDefault') %></span><% } %>
+      </div>
+      <div class="av-slot-body">
+        <h3><%= locale === 'en' ? s.en : s.fa %></h3>
+        <p class="av-slot-meta"><span class="status-pill <%= cur ? 'status-published' : 'status-draft' %>"><%= cur ? t('adminVisual.custom') : t('adminVisual.default') %></span> <small><%= t('adminVisual.suggestedRatio') %>: <span dir="ltr"><%= s.ratio %></span></small><% if (cur) { %> <small>· <%= when(cur.updated_at) %></small><% } %></p>
+        <details class="av-slot-edit"><summary><%= cur ? t('adminVisual.replace') : t('adminVisual.choose') %></summary>
+          <form action="/admin/visual/images/<%= s.key %>" method="post" enctype="multipart/form-data" class="form-stack">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label for="f-<%= s.key %>"><%= t('adminVisual.uploadNew') %></label>
+            <input class="form-control file-control" id="f-<%= s.key %>" type="file" name="file" accept="image/jpeg,image/png,image/webp,image/gif">
+            <% if (media.length) { %><label for="m-<%= s.key %>"><%= t('adminVisual.orPick') %></label>
+            <select class="form-control" id="m-<%= s.key %>" name="media_id"><option value=""><%= t('adminVisual.pickNone') %></option><% media.forEach(m => { %><option value="<%= m.id %>" <%= cur && cur.media_id === m.id ? 'selected' : '' %>>#<%= m.id %> — <%= m.alt || m.original_name %><%= m.width ? ` (${m.width}×${m.height})` : '' %></option><% }) %></select><% } %>
+            <label for="a-<%= s.key %>"><%= t('adminVisual.fAlt') %></label><input class="form-control" id="a-<%= s.key %>" name="alt" maxlength="300" value="<%= cur ? cur.alt : '' %>">
+            <label for="ae-<%= s.key %>"><%= t('adminVisual.fAltEn') %></label><input class="form-control" id="ae-<%= s.key %>" name="alt_en" dir="ltr" maxlength="300" value="<%= cur ? cur.alt_en : '' %>">
+            <button class="button button-primary button-small" type="submit" data-busy-label="<%= t('adminVisual.saving') %>"><%= t('common.save') %></button>
+          </form>
+        </details>
+        <% if (cur) { %><form action="/admin/visual/images/<%= s.key %>/reset" method="post" class="av-reset"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button-link" data-confirm="<%= t('adminVisual.resetConfirm') %>" data-confirm-label="<%= t('adminVisual.reset') %>"><%= t('adminVisual.reset') %></button></form><% } %>
+      </div>
+    </article>
+    <% }) %>
+  </div>
+</section>
+<% }) %>
+<p class="av-note"><%= t('adminVisual.imagesNote') %></p>
+</div></div><%- include('../partials/footer') %>

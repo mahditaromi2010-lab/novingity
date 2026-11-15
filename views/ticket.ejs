@@ -1,23 +1,49 @@
 <%- include('partials/header', {title}) %>
-<section class="account-section section"><div class="container">
+<link rel="stylesheet" href="/public/css/support.css?v=<%= locals.assetVersion || '0' %>">
+<% const dt = d => new Date(d).toLocaleString(locale === 'en' ? 'en-GB' : 'fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'medium', timeStyle: 'short' }); %>
+<section class="account-section section"><div class="container sp-narrow">
   <div class="account-welcome"><div><span class="section-kicker"><%= t('kicker.support') %> #<%= ticket.id %></span><h1><%= ticket.subject %></h1><p><span class="status-pill status-ticket-<%= ticket.status %>"><%= t('tickets.status.'+ticket.status) %></span> · <%= t('tickets.category.'+ticket.category) %> · <%= t('tickets.priority.'+ticket.priority) %></p></div><a class="button button-outline" href="/account/tickets"><%= t('common.back') %></a></div>
   <section class="account-panel">
     <h2 class="sr-only"><%= t('tickets.thread') %></h2>
-    <div class="ticket-thread">
-      <% messages.forEach(m => { %>
-      <div class="ticket-message ticket-message-<%= m.author_type %>">
-        <div class="ticket-message-head"><b><%= m.author_type === 'admin' ? t('tickets.supportAuthor') : t('tickets.youAuthor') %></b><time><%= new Date(m.created_at).toLocaleString(locale==='en'?'en-US':'fa-IR', { dateStyle: 'medium', timeStyle: 'short' }) %></time></div>
-        <p><%= m.body %></p>
-      </div>
+    <ol class="ticket-thread sp-thread-list">
+      <% messages.forEach((m, i) => { %>
+      <li class="ticket-message ticket-message-<%= m.author_type %>"<% if (i === messages.length - 1) { %> id="latest"<% } %>>
+        <div class="ticket-message-head"><b><%= m.author_type === 'admin' ? t('tickets.supportAuthor') : t('tickets.youAuthor') %></b><time datetime="<%= new Date(m.created_at).toISOString() %>"><%= dt(m.created_at) %></time></div>
+        <p class="sp-body"><%= m.body %></p>
+        <% if (m.attachment_key) { %><a class="sp-attachment" href="/account/tickets/<%= ticket.id %>/files/<%= m.id %>" target="_blank" rel="noopener"><span aria-hidden="true">📎</span> <%= m.attachment_name %></a><% } %>
+      </li>
       <% }) %>
-    </div>
+    </ol>
     <% if (ticket.status !== 'closed') { %>
-    <form action="/account/tickets/<%= ticket.id %>/reply" method="post" class="ticket-reply-form">
+    <form action="/account/tickets/<%= ticket.id %>/reply" method="post" class="ticket-reply-form" enctype="multipart/form-data">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <textarea class="form-control" name="message" rows="4" maxlength="4000" placeholder="<%= t('tickets.replyPlaceholder') %>" required></textarea>
-      <div class="form-actions"><button class="button button-primary" type="submit"><%= t('common.send') %></button></div>
+      <label class="sr-only" for="reply"><%= t('tickets.replyPlaceholder') %></label>
+      <textarea class="form-control" id="reply" name="message" rows="4" maxlength="4000" placeholder="<%= t('tickets.replyPlaceholder') %>" required></textarea>
+      <div class="sp-reply-row"><label for="attachment" class="sp-attach-label"><span aria-hidden="true">📎</span> <%= t('support.attachment') %></label><input class="form-control file-control" id="attachment" type="file" name="attachment" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"></div>
+      <div class="form-actions"><button class="button button-primary" type="submit" data-busy-label="<%= t('support.sendingTicket') %>"><%= t('common.send') %></button></div>
     </form>
-    <% } else { %><p class="muted-text"><%= t('tickets.closedNotice') %></p><% } %>
+    <form action="/account/tickets/<%= ticket.id %>/close" method="post" class="sp-close-form"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="button-link" data-confirm="<%= t('support.closeConfirm') %>" data-confirm-label="<%= t('support.closeTicket') %>"><%= t('support.closeTicket') %></button></form>
+    <% } else { %><p class="muted-text"><%= t('tickets.closedNotice') %> <a href="/account/tickets/new"><%= t('tickets.newTicket') %></a></p><% } %>
+
+    <% if (['answered', 'closed'].includes(ticket.status)) { %>
+    <div class="sp-rate">
+      <% if (ticket.rating) { %><p><%= t('support.ratedThanks') %> <%= ticket.rating > 0 ? '👍' : '👎' %></p>
+      <% } else { %>
+      <form action="/account/tickets/<%= ticket.id %>/rate" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <fieldset><legend><%= t('support.rateQuestion') %></legend>
+          <div class="sp-rate-row">
+            <label class="sp-rate-opt"><input type="radio" name="rating" value="1" required> 👍 <%= t('support.yes') %></label>
+            <label class="sp-rate-opt"><input type="radio" name="rating" value="-1"> 👎 <%= t('support.no') %></label>
+          </div>
+          <label for="rcomment" class="sr-only"><%= t('support.rateComment') %></label>
+          <input class="form-control" id="rcomment" name="comment" maxlength="500" placeholder="<%= t('support.rateComment') %>">
+          <button class="button button-outline button-small" type="submit"><%= t('support.rateSubmit') %></button>
+        </fieldset>
+      </form>
+      <% } %>
+    </div>
+    <% } %>
   </section>
 </div></section>
 <%- include('partials/footer') %>

@@ -1,0 +1,3 @@
+<%# Admin-chosen picture behind a page header (slot from «بنرها و تصاویر»). Decorative: the heading carries the meaning. %>
+<% const heroImg = locals.siteImage ? siteImage(key) : null; %>
+<% if (heroImg && heroImg.custom) { %><div class="page-hero-media" aria-hidden="true"><img src="<%= heroImg.src %>" alt=""<% if (heroImg.width) { %> width="<%= heroImg.width %>" height="<%= heroImg.height %>"<% } %> fetchpriority="high" decoding="async"></div><% } %>

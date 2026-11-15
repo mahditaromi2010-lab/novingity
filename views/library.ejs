@@ -16,7 +16,7 @@
   const qs = c => { const p = new URLSearchParams(); if (c) p.set('category', c); if (q) p.set('q', q); const s = p.toString(); return '/library' + (s ? '?' + s : ''); };
   const total = Object.values(counts).reduce((s, n) => s + n, 0);
 %>
-<section class="page-hero lib-hero"><div class="container">
+<section class="page-hero lib-hero"><%- include('partials/hero-image', { key: 'library.hero' }) %><div class="container">
   <div class="breadcrumb"><a href="/"><%= t('tools.breadcrumbHome') %></a><span>/</span><span><%= t('nav.library') %></span></div>
   <span class="section-kicker"><%= t('library.kicker') %></span>
   <h1><%= t('library.titlePre') %> <em><%= t('library.titleEm') %></em></h1>
@@ -32,6 +32,7 @@
     <% categories.filter(c => counts[c]).forEach(c => { %><a class="lib-chip" href="<%= qs(c) %>"<%- category === c ? ' aria-current="page"' : '' %>><%= t('library.cat.' + c) %> <b><%= nf(counts[c]) %></b></a><% }) %>
   </nav>
 </div></section>
+<%- include('partials/banner-slot', { slot: 'library.top' }) %>
 
 <section class="section lib-section"><div class="container">
   <p class="lib-count" aria-live="polite"><%= tr('library.resultCount', docs.length) %></p>

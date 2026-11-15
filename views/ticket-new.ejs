@@ -1,21 +1,33 @@
 <%- include('partials/header', {title}) %>
-<section class="account-section section"><div class="container">
-  <div class="account-welcome"><div><span class="section-kicker"><%= t('kicker.support') %></span><h1><%= t('tickets.newTicket') %></h1></div><a class="button button-outline" href="/account/tickets"><%= t('common.back') %></a></div>
+<link rel="stylesheet" href="/public/css/support.css?v=<%= locals.assetVersion || '0' %>">
+<% const d = locals.draft || {}; %>
+<section class="account-section section"><div class="container sp-narrow">
+  <div class="account-welcome"><div><span class="section-kicker"><%= t('kicker.support') %></span><h1><%= t('tickets.newTicket') %></h1><p><%= t('support.newTicketLead') %></p></div><a class="button button-outline" href="/support"><%= t('common.back') %></a></div>
   <section class="account-panel">
-    <form action="/account/tickets" method="post" class="profile-form">
+    <form action="/account/tickets" method="post" class="profile-form" enctype="multipart/form-data" data-ticket-form data-unsaved-guard>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="source" value="<%= fromAssistant ? 'assistant' : 'form' %>" data-ticket-source>
+      <p class="sp-from-assistant" data-from-assistant <%= fromAssistant ? '' : 'hidden' %>><%= t('support.fromAssistantNote') %></p>
       <div class="form-grid">
-        <div class="form-field form-span-2"><label for="subject"><%= t('tickets.subject') %> *</label><input class="form-control" id="subject" name="subject" maxlength="200" required></div>
+        <div class="form-field form-span-2"><label for="subject"><%= t('tickets.subject') %> *</label><input class="form-control" id="subject" name="subject" maxlength="200" required value="<%= d.subject || '' %>" autocomplete="off" aria-describedby="spSuggest" data-suggest-input></div>
+        <div class="form-span-2 sp-suggest" id="spSuggest" aria-live="polite" hidden data-suggest-box>
+          <b><%= t('support.suggestTitle') %></b>
+          <ul data-suggest-list></ul>
+        </div>
         <div class="form-field"><label for="category"><%= t('common.category') %></label><select class="form-control" id="category" name="category">
-          <% ['order','product','account','technical','other'].forEach(c => { %><option value="<%= c %>"><%= t('tickets.category.'+c) %></option><% }) %>
+          <% ['order','product','account','technical','other'].forEach(c => { %><option value="<%= c %>" <%= (d.category || 'other') === c ? 'selected' : '' %>><%= t('tickets.category.'+c) %></option><% }) %>
         </select></div>
         <div class="form-field"><label for="priority"><%= t('common.priority') %></label><select class="form-control" id="priority" name="priority">
-          <% ['low','normal','high','urgent'].forEach(p => { %><option value="<%= p %>" <%= p==='normal'?'selected':'' %>><%= t('tickets.priority.'+p) %></option><% }) %>
+          <% ['low','normal','high','urgent'].forEach(p => { %><option value="<%= p %>" <%= (d.priority || 'normal') === p ? 'selected' : '' %>><%= t('tickets.priority.'+p) %></option><% }) %>
         </select></div>
-        <div class="form-field form-span-2"><label for="message"><%= t('tickets.message') %> *</label><textarea class="form-control" id="message" name="message" rows="6" maxlength="4000" required></textarea></div>
+        <div class="form-field form-span-2"><label for="message"><%= t('tickets.message') %> *</label><textarea class="form-control" id="message" name="message" rows="7" maxlength="4000" required aria-describedby="hMsg"><%= d.message || '' %></textarea><small id="hMsg"><%= t('support.messageHint') %></small></div>
+        <div class="form-field form-span-2"><label for="attachment"><%= t('support.attachment') %></label><input class="form-control file-control" id="attachment" type="file" name="attachment" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" aria-describedby="hAtt"><small id="hAtt"><%= t('support.attachmentHint') %></small></div>
       </div>
-      <div class="profile-bottom"><span></span><button class="button button-dark" type="submit"><%= t('tickets.submit') %></button></div>
+      <div class="profile-bottom"><small class="sp-privacy"><%= t('support.ticketPrivacy') %></small><button class="button button-dark" type="submit" data-busy-label="<%= t('support.sendingTicket') %>"><%= t('tickets.submit') %></button></div>
     </form>
   </section>
 </div></section>
+<% const ui = { locale, suggestUrl: '/api/support/suggest' }; %>
+<script type="application/json" id="support-ui"><%- JSON.stringify(ui).replace(/</g, '\\u003c') %></script>
+<script defer src="/public/js/support.js?v=<%= locals.assetVersion || '0' %>"></script>
 <%- include('partials/footer') %>
