@@ -33,7 +33,11 @@ test('technical SEO', { skip: skipReason, concurrency: false }, async t => {
       assert.equal(hreflang(h, 'fa'), expected, path);
       assert.equal(hreflang(h, 'en'), `${expected}?lang=en`, path);
       assert.equal(hreflang(h, 'x-default'), expected, path);
-      assert.match(h, /<meta property="og:image" content="https:\/\/novingity\.ir\/public\/images\/og-default\.png">/);
+      // Fixed pages get their own share card (Persian here); the brand picture is only a fallback.
+      const card = path === '/' ? 'home' : path.slice(1);
+      assert.match(h, new RegExp(`<meta property="og:image" content="https:\\/\\/novingity\\.ir\\/public\\/images\\/og\\/${card}-fa\\.jpg">`), path);
+      assert.match(h, /<meta property="og:image:width" content="1200">/, path);
+      assert.match((await c.get(path)).headers.get('permissions-policy') || '', /camera=\(\)/, `${path} permissions-policy`);
       assert.ok(types(jsonld(h)).includes('Organization'), path);
       assert.doesNotMatch(h, /name="robots" content="noindex/);
       assert.equal((h.match(/<h1[\s>]/g) || []).length, 1, `${path} has exactly one h1`);

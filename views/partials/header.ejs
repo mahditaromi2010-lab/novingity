@@ -16,7 +16,8 @@
   const s = locals.seo;
   const isError = locals.httpStatus && locals.httpStatus() >= 400;
   const ogDefault = locals.siteImage ? siteImage('seo.ogDefault') : null;
-  const ogImageUrl = locals.ogImage || `${locals.appUrl}${ogDefault && ogDefault.custom ? ogDefault.src : '/public/images/og-default.png'}`;
+  // Priority: page image (product/article cover) > admin-set default > per-page share card > brand picture.
+  const ogImageUrl = locals.ogImage || `${locals.appUrl}${ogDefault && ogDefault.custom ? ogDefault.src : (locals.ogCard || '/public/images/og-default.png')}`;
 %>
   <meta name="description" content="<%= pageDescription %>">
   <title><%= pageTitle %></title>
