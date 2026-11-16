@@ -25,6 +25,8 @@ const { i18nMiddleware, resolveLocale, DEFAULT_LOCALE, LOCALE_COOKIE } = require
 const { filterCoverageAreas, summarizeCoverageAreas, statusColor: coverageTone } = require('./lib/coverage-filter');
 const { mapTileConfig, mapirKeyStatus } = require('./lib/map-tiles');
 const seo = require('./lib/seo');
+const { cardPath, cardExists } = require('./lib/og-cards');
+const { PERMISSIONS_POLICY } = require('./lib/security-headers');
 const { createGateway } = require('./lib/ai/gateway');
 const { createMabhas17Assistant } = require('./lib/ai/mabhas17-assistant');
 const visual = require('./lib/visual');
@@ -105,6 +107,7 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
   app.use((req, res, next) => {
     req.id = crypto.randomUUID();
     res.setHeader('X-Request-Id', req.id);
+    res.setHeader('Permissions-Policy', PERMISSIONS_POLICY);
     next();
   });
   app.use(helmet({
@@ -250,6 +253,9 @@ function createApp({ pool, logger = defaultLogger, uploadDir } = {}) {
     res.locals.requestId = req.id;
     // SEO defaults for every page (canonical, hreflang, robots, Open Graph); routes add structuredData/ogImage/ogType.
     res.locals.seo = seo.seoFor({ appUrl: APP_URL, path: req.path, query: req.query, locale: res.locals.locale });
+    // Share card for fixed pages (only when the generated file exists); header.ejs uses it when no page image is set.
+    const card = cardPath(req.path, res.locals.locale);
+    res.locals.ogCard = card && cardExists(card) ? card : null;
     res.locals.appUrl = APP_URL;
     res.locals.httpStatus = () => res.statusCode;
     res.locals.seoJsonLd = nodes => seo.jsonLd([seo.organization(APP_URL, res.locals.siteName, res.locals.siteEmail), ...nodes]);
